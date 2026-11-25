@@ -1,0 +1,20 @@
+﻿Directory: {Directory}
+NotEqual:
+  - Received: NotEqual.{Runtime}.received.txt
+    Verified: NotEqual.verified.txt
+
+FileContent:
+
+NotEqual:
+
+Received: NotEqual.{Runtime}.received.txt
+Verified: NotEqual.verified.txt
+Diff:
+2 line 2
+- line 3
++ line three
+4 line 4
+
+7 line 7
++ line 8
+  [EOF]

@@ -1,0 +1,9 @@
+﻿{
+  Id: Guid_1,
+  Lines: [
+    apple,
+    pear
+  ],
+  Total: 12.5,
+  PlacedAt: DateTimeOffset_1
+}

@@ -1,0 +1,9 @@
+﻿{
+  Guid: Guid_1,
+  GuidNullable: Guid_1,
+  GuidString: Guid_1,
+  UpperString: Guid_1,
+  Other: Guid_2,
+  EmptyNullable: Guid_Empty,
+  InsideText: id ebced679-45d3-4653-8791-3d969c4a986c here
+}

@@ -1,119 +1,317 @@
 using System.Collections;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace AlphaSoftware.Snapshotter;
 
 /// <summary>
-/// Where the verification was called from, as recorded by the compiler.
+/// Where <c>Verify</c> was called from: what the compiler recorded, and what the stack and the test framework
+/// (if any) add.
 /// </summary>
-sealed class CallSite(string sourceFile, string memberName, Assembly assembly)
+sealed class CallSite
 {
-    public string SourceFile { get; } = sourceFile;
-    public string MemberName { get; } = memberName;
-    public Assembly Assembly { get; } = assembly;
+    public CallSite(string sourceFile, string memberName, Assembly assembly)
+    {
+        SourceFile = sourceFile;
+        MemberName = memberName;
+        Assembly = assembly;
+        var located = TestMethodLocator.Find(memberName);
+        Type = located?.Type;
+        Method = located?.Method;
+        FrameworkArguments = TestFrameworks.CurrentArguments(Method);
+    }
+
+    public string SourceFile { get; }
+    public string MemberName { get; }
+    public Assembly Assembly { get; }
+    public Type? Type { get; }
+    public MethodBase? Method { get; }
+    public object?[]? FrameworkArguments { get; }
+
+    public string Description => $"{TypeName}.{MethodName}";
+
+    /// <summary>
+    /// The test class: <c>Outer.Inner</c> for nested classes. Without a type from the stack, the source file name
+    /// up to its first dot.
+    /// </summary>
+    public string TypeName =>
+        Type == null
+            ? Naming.TypeNameFromFile(SourceFile)
+            : Type.IsNested && Type.DeclaringType != null ? $"{Type.DeclaringType.Name}.{Type.Name}" : Type.Name;
+
+    public string MethodName => Naming.CleanMemberName(Method?.Name ?? MemberName);
 }
 
-sealed class SnapshotLocation(string directory, string name)
+/// <summary>
+/// The directory and file name stems of a verification's snapshots.
+/// </summary>
+sealed class SnapshotPaths(string directory, string verifiedStem, string receivedStem, bool uniqueDirectory, string typeName, string methodName)
 {
     public string Directory { get; } = directory;
-    public string Name { get; } = name;
-
-    public string VerifiedPath(string extension) =>
-        Path.Combine(Directory, $"{Name}.verified.{extension}");
-
-    public string ReceivedPath(string extension) =>
-        Path.Combine(Directory, $"{Name}.received.{extension}");
+    public string VerifiedStem { get; } = verifiedStem;
+    public string ReceivedStem { get; } = receivedStem;
+    public bool UniqueDirectory { get; } = uniqueDirectory;
+    public string TypeName { get; } = typeName;
+    public string MethodName { get; } = methodName;
 }
 
 static class Naming
 {
-    static readonly char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
-
-    public static SnapshotLocation Resolve(SnapshotSettings settings, CallSite site)
+    public static SnapshotPaths Resolve(EffectiveSettings settings, CallSite site)
     {
-        var directory = ResolveDirectory(settings, site.SourceFile);
-        var typeName = TypeNameFromFile(site.SourceFile);
-        var methodName = CleanMemberName(site.MemberName);
+        var instance = settings.Instance;
+        var info = ProjectInfo.For(site.Assembly);
 
-        if (settings.FileName != null)
+        var derived = default(PathInfo);
+        if (VerifierSettings.PathInfoDeriver is { } derive && site.Type != null && site.Method is MethodInfo method)
         {
-            return new(directory, Sanitize(settings.FileName));
+            derived = derive(site.SourceFile, info.ProjectDirectory ?? "", site.Type, method);
         }
 
-        var name = new StringBuilder();
-        name.Append(Sanitize(settings.TypeName ?? typeName));
-        name.Append('.');
-        name.Append(Sanitize(settings.MethodName ?? methodName));
+        var typeName = instance.TypeName ?? derived.TypeName ?? site.TypeName;
+        var methodName = instance.MethodName ?? derived.MethodName ?? site.MethodName;
+        var directory = ResolveDirectory(instance.Directory ?? derived.Directory, site.SourceFile);
 
-        if (settings.ParametersText != null)
+        var uniqueness = UniquenessText(settings.Unique, site.Assembly);
+        // Every framework of a multi-targeted project shares one verified file; received files say which one ran.
+        var receivedUniqueness = info.MultiTarget
+            ? UniquenessText(settings.Unique | Snapshotter.Uniqueness.RuntimeAndVersion, site.Assembly)
+            : uniqueness;
+        string verifiedStem;
+        string receivedStem;
+        if (instance.FileName != null)
         {
-            name.Append('_');
-            name.Append(Sanitize(settings.ParametersText));
+            verifiedStem = receivedStem = instance.FileName;
         }
-        else if (settings.Parameters is { Length: > 0 } values)
+        else
         {
-            // Looked up with the names from the call site, not any overrides: they identify the test method.
-            var parameterNames = ParameterNames.Resolve(site.Assembly, typeName, methodName, values.Length);
-            for (var index = 0; index < values.Length; index++)
-            {
-                name.Append('_');
-                name.Append(parameterNames[index]);
-                name.Append('=');
-                name.Append(Sanitize(FormatValue(values[index])));
-            }
+            var prefix = typeName.Length == 0 ? methodName : $"{typeName}.{methodName}";
+            var (verifiedParameters, receivedParameters) = ParameterText(settings, site);
+            verifiedStem = prefix + verifiedParameters;
+            receivedStem = prefix + receivedParameters;
         }
 
-        return new(directory, name.ToString());
+        verifiedStem += uniqueness;
+        receivedStem += receivedUniqueness;
+
+        if (instance.UniqueDirectory)
+        {
+            var receivedSuffix = receivedUniqueness.Length > uniqueness.Length && receivedUniqueness.StartsWith(uniqueness, StringComparison.Ordinal)
+                ? receivedUniqueness.Substring(uniqueness.Length)
+                : "";
+            return new(Path.Combine(directory, verifiedStem), "", receivedSuffix, true, typeName, methodName);
+        }
+
+        return new(directory, verifiedStem, receivedStem, false, typeName, methodName);
     }
 
-    static string ResolveDirectory(SnapshotSettings settings, string sourceFile)
+    static string ResolveDirectory(string? configured, string sourceFile)
     {
-        if (settings.Directory != null && Path.IsPathRooted(settings.Directory))
+        if (configured != null && Path.IsPathRooted(configured))
         {
-            return settings.Directory;
+            return Path.GetFullPath(configured);
         }
 
         var sourceDirectory = string.IsNullOrEmpty(sourceFile) ? null : Path.GetDirectoryName(sourceFile);
-        if (sourceDirectory == null || !Directory.Exists(sourceDirectory))
+        if (sourceDirectory == null || !System.IO.Directory.Exists(sourceDirectory))
         {
-            throw new SnapshotterException(
+            throw new Exception(
                 $"""
                  The test source path recorded by the compiler, '{sourceFile}', does not exist on this machine.
                  Snapshots are stored next to the test source file, so tests have to run where they were built.
                  If the build maps source paths (deterministic builds, ContinuousIntegrationBuild), set
-                 <DeterministicSourcePaths>false</DeterministicSourcePaths>, which the Snapshotter package does for
-                 projects that reference it directly. Or store snapshots elsewhere with an absolute UseDirectory(...).
+                 <DeterministicSourcePaths>false</DeterministicSourcePaths>, which the AlphaSoftware.Snapshotter package
+                 does for projects that reference it. Or store snapshots elsewhere with an absolute UseDirectory(...).
                  """);
         }
 
-        return settings.Directory == null
-            ? sourceDirectory
-            : Path.GetFullPath(Path.Combine(sourceDirectory, settings.Directory));
+        return configured == null ? sourceDirectory : Path.GetFullPath(Path.Combine(sourceDirectory, configured));
+    }
+
+    static (string Verified, string Received) ParameterText(EffectiveSettings settings, CallSite site)
+    {
+        var instance = settings.Instance;
+        if (instance.ParametersText != null)
+        {
+            var text = "_" + instance.ParametersText;
+            return (instance.IgnoreAllParametersForVerified ? "" : text, text);
+        }
+
+        var values = instance.Parameters ?? site.FrameworkArguments;
+        var parameters = site.Method?.GetParameters() ?? [];
+        if (values == null || values.Length == 0)
+        {
+            return ("", "");
+        }
+
+        if (site.Method == null)
+        {
+            throw new Exception(
+                $"The test method that called Verify could not be found, so the values passed to UseParameters(...) cannot be named. Name the snapshot with UseTextForParameters(...) instead. Called from {site.MemberName} in {site.SourceFile}.");
+        }
+
+        if (parameters.Length == 0)
+        {
+            return ("", "");
+        }
+
+        if (values.Length > parameters.Length)
+        {
+            throw new Exception($"The number of passed in parameters ({values.Length}) must not exceed the number of parameters for the method ({parameters.Length}).");
+        }
+
+        var ignored = settings.IgnoredParameters;
+        var ignoreAll = instance.IgnoreAllParametersForVerified || ignored?.Contains("*") == true;
+        var verified = new StringBuilder();
+        var received = new StringBuilder();
+        for (var index = 0; index < values.Length; index++)
+        {
+            var name = parameters[index].Name ?? $"arg{index}";
+            var part = $"_{name}={ParameterValue(values[index], settings.Named, nested: false)}";
+            received.Append(part);
+            if (!ignoreAll && ignored?.Contains(name) != true)
+            {
+                verified.Append(part);
+            }
+        }
+
+        return (verified.ToString(), received.ToString());
+    }
+
+    internal static string ParameterValue(object? value, NamedValues named, bool nested)
+    {
+        if (value == null)
+        {
+            return "null";
+        }
+
+        if (named.TryGet(value, out var name))
+        {
+            return name;
+        }
+
+        foreach (var (type, convert) in VerifierSettings.ParameterNames)
+        {
+            if (type == value.GetType())
+            {
+                return convert(value);
+            }
+        }
+
+        foreach (var (type, convert) in VerifierSettings.ParameterNames)
+        {
+            if (type.IsInstanceOfType(value))
+            {
+                return convert(value);
+            }
+        }
+
+        switch (value)
+        {
+            case string text:
+                return Clean(text);
+            case bool boolean:
+                return boolean ? "True" : "False";
+            case Guid guid:
+                return guid.ToString("D");
+            case DateTime dateTime:
+                return Formatting.Date(dateTime, "T", "-") + dateTime.Kind switch
+                {
+                    DateTimeKind.Utc => "Utc",
+                    DateTimeKind.Local => "Local",
+                    _ => ""
+                };
+            case DateTimeOffset offset:
+                return Formatting.Date(offset.DateTime, "T", "-") + Formatting.Offset(offset.Offset);
+#if NET6_0_OR_GREATER
+            case DateOnly date:
+                return Formatting.Date(date);
+            case TimeOnly time:
+                return time.ToString("h-mm-tt", CultureInfo.InvariantCulture);
+#endif
+        }
+
+        var type1 = value.GetType();
+        if (type1.IsGenericType && type1.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+        {
+            var key = type1.GetProperty("Key")!.GetValue(value);
+            var item = type1.GetProperty("Value")!.GetValue(value);
+            return $"{ParameterValue(key, named, true)}={ParameterValue(item, named, true)}";
+        }
+
+        if (value is IDictionary dictionary)
+        {
+            var entries = new List<string>();
+            foreach (DictionaryEntry entry in dictionary)
+            {
+                entries.Add($"{ParameterValue(entry.Key, named, true)}={ParameterValue(entry.Value, named, true)}");
+            }
+
+            return Wrap(entries, nested);
+        }
+
+        if (value is IEnumerable enumerable)
+        {
+            var items = enumerable.Cast<object?>().Select(item => ParameterValue(item, named, true)).ToList();
+            return Wrap(items, nested);
+        }
+
+        if (value is IFormattable formattable)
+        {
+            return Clean(formattable.ToString(null, CultureInfo.InvariantCulture));
+        }
+
+        var description = value.ToString() ?? throw new Exception($"{value.GetType().FullName} returned a null for `ToString()`.");
+        return Clean(description);
+    }
+
+    static string Wrap(List<string> items, bool nested)
+    {
+        if (items.Count == 0)
+        {
+            return "[]";
+        }
+
+        var joined = string.Join(",", items);
+        return nested ? $"[{joined}]" : joined;
     }
 
     /// <summary>
-    /// The source file name up to its first dot: <c>OrderTests.cs</c> and <c>OrderTests.Part.cs</c> both
-    /// give <c>OrderTests</c>.
+    /// Replaces characters that can't be in a file name, and <c>#</c>, with <c>-</c>.
+    /// </summary>
+    internal static string Clean(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(character is '"' or '\\' or '/' or '<' or '>' or '|' or ':' or '*' or '?' or '#' || character < ' ' ? '-' : character);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// The source file name up to its first dot: <c>OrderTests.cs</c> and <c>OrderTests.Part.cs</c> both give
+    /// <c>OrderTests</c>.
     /// </summary>
     internal static string TypeNameFromFile(string sourceFile)
     {
-        // Paths recorded on another OS keep their own separators, so split on both.
         var fileName = sourceFile.Substring(sourceFile.LastIndexOfAny(['/', '\\']) + 1);
         var dot = fileName.IndexOf('.');
         return dot > 0 ? fileName.Substring(0, dot) : fileName;
     }
 
     /// <summary>
-    /// Makes a compiler supplied member name usable in a file name: top level statements report
-    /// <c>&lt;Main&gt;$</c> and constructors <c>.ctor</c>.
+    /// Top level statements report <c>&lt;Main&gt;$</c> and constructors <c>.ctor</c>.
     /// </summary>
     internal static string CleanMemberName(string memberName)
     {
         if (string.IsNullOrWhiteSpace(memberName))
         {
-            throw new SnapshotterException("The calling member name is empty. Name the snapshot with UseMethodName(...) or UseFileName(...).");
+            throw new Exception("The calling member name is empty. Name the snapshot with UseMethodName(...) or UseFileName(...).");
         }
 
         var open = memberName.IndexOf('<');
@@ -129,88 +327,118 @@ static class Naming
         return memberName.TrimStart('.');
     }
 
-    internal static string FormatValue(object? value) =>
-        value switch
-        {
-            null => "null",
-            string text => text,
-            bool boolean => boolean ? "true" : "false",
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            IEnumerable items => string.Join(",", items.Cast<object?>().Select(FormatValue)),
-            _ => value.ToString() ?? ""
-        };
-
-    internal static string Sanitize(string value)
+    static string UniquenessText(Uniqueness unique, Assembly assembly)
     {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
+        var builder = new StringBuilder();
+
+        void Add(string segment)
         {
-            builder.Append(Array.IndexOf(invalidFileNameChars, character) >= 0 || character is '/' or '\\' ? '-' : character);
+            var text = "." + segment;
+            if (builder.ToString().IndexOf(text, StringComparison.Ordinal) < 0)
+            {
+                builder.Append(text);
+            }
+        }
+
+        if (unique.HasFlag(Snapshotter.Uniqueness.TargetFrameworkAndVersion))
+        {
+            Add(TargetFramework(assembly, withVersion: true));
+        }
+        else if (unique.HasFlag(Snapshotter.Uniqueness.TargetFramework))
+        {
+            Add(TargetFramework(assembly, withVersion: false));
+        }
+
+        if (unique.HasFlag(Snapshotter.Uniqueness.AssemblyConfiguration))
+        {
+            Add(assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration
+                ?? throw new Exception($"UniqueForAssemblyConfiguration needs an AssemblyConfigurationAttribute on {assembly.GetName().Name}."));
+        }
+
+        if (unique.HasFlag(Snapshotter.Uniqueness.Architecture))
+        {
+            Add(RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant());
+        }
+
+        if (unique.HasFlag(Snapshotter.Uniqueness.OSPlatform))
+        {
+            Add(OperatingSystem());
+        }
+
+        if (unique.HasFlag(Snapshotter.Uniqueness.RuntimeAndVersion))
+        {
+            Add(RuntimeAndVersion());
+        }
+        else if (unique.HasFlag(Snapshotter.Uniqueness.Runtime))
+        {
+            Add(Runtime());
         }
 
         return builder.ToString();
     }
-}
 
-static class ParameterNames
-{
-    const BindingFlags flags =
-        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
-
-    /// <summary>
-    /// Without a test framework nothing says which parameters the test has, so they are read from the test
-    /// method: a method named <paramref name="methodName" /> on a type named <paramref name="typeName" />.
-    /// </summary>
-    public static IReadOnlyList<string> Resolve(Assembly assembly, string typeName, string methodName, int valueCount)
+    static string OperatingSystem()
     {
-        var candidates = LoadableTypes(assembly)
-            .Where(type => WithoutArity(type.Name) == typeName)
-            .SelectMany(type => type.GetMethods(flags))
-            .Where(method => method.Name == methodName)
-            .Select(method => method.GetParameters().Select(parameter => parameter.Name ?? $"arg{parameter.Position}").ToArray())
-            .Where(names => names.Length >= valueCount)
-            .ToList();
-
-        var exact = candidates.Where(names => names.Length == valueCount).ToList();
-        if (exact.Count > 0)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            candidates = exact;
+            return "Windows";
         }
 
-        var distinct = candidates
-            .GroupBy(names => string.Join(",", names))
-            .Select(group => group.First())
-            .ToList();
-
-        if (distinct.Count == 1)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return distinct[0];
+            return "Linux";
         }
 
-        var problem = distinct.Count == 0 ? "No method" : "More than one method";
-        throw new SnapshotterException(
-            $"""
-             {problem} named '{typeName}.{methodName}' with {valueCount} or more parameters was found in '{assembly.GetName().Name}', so the values passed to UseParameters(...) cannot be named.
-             The type is taken to be the source file name, and the method the calling member. Keep the test in a class named after its
-             file, or name the snapshot with UseTextForParameters(...) instead.
-             """);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return "OSX";
+        }
+
+        throw new Exception($"UniqueForOSPlatform does not know this operating system: {RuntimeInformation.OSDescription}.");
     }
 
-    static string WithoutArity(string name)
+    internal static string Runtime()
     {
-        var tick = name.IndexOf('`');
-        return tick > 0 ? name.Substring(0, tick) : name;
+        var description = RuntimeInformation.FrameworkDescription;
+        if (description.StartsWith(".NET Framework", StringComparison.Ordinal))
+        {
+            return "Net";
+        }
+
+        return description.StartsWith("Mono", StringComparison.Ordinal) ? "Mono" : "DotNet";
     }
 
-    static IEnumerable<Type> LoadableTypes(Assembly assembly)
+    internal static string RuntimeAndVersion()
     {
-        try
+        var runtime = Runtime();
+        Version version;
+        if (runtime == "Net")
         {
-            return assembly.GetTypes();
+            // ".NET Framework 4.8.9310.0"
+            var parts = RuntimeInformation.FrameworkDescription.Substring(".NET Framework".Length).Trim().Split('.');
+            version = new(int.Parse(parts[0], CultureInfo.InvariantCulture), parts.Length > 1 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : 0);
         }
-        catch (ReflectionTypeLoadException exception)
+        else
         {
-            return exception.Types.Where(type => type != null)!;
+            version = Environment.Version;
         }
+
+        return $"{runtime}{version.Major}_{version.Minor}";
+    }
+
+    static string TargetFramework(Assembly assembly, bool withVersion)
+    {
+        var name = assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName
+                   ?? throw new Exception($"{assembly.GetName().Name} has no TargetFrameworkAttribute.");
+        // ".NETCoreApp,Version=v10.0", ".NETFramework,Version=v4.8", ".NETStandard,Version=v2.0"
+        var runtime = name.StartsWith(".NETFramework", StringComparison.Ordinal) ? "Net" : "DotNet";
+        if (!withVersion)
+        {
+            return runtime;
+        }
+
+        var index = name.IndexOf("Version=v", StringComparison.Ordinal);
+        var version = index < 0 ? new Version(0, 0) : new Version(name.Substring(index + "Version=v".Length));
+        return $"{runtime}{version.Major}_{version.Minor}";
     }
 }

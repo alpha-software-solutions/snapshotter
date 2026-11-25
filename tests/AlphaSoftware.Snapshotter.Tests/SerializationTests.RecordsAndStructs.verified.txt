@@ -1,0 +1,10 @@
+﻿{
+  Record: {
+    Name: Ann,
+    Age: 30
+  },
+  Struct: {
+    X: 1,
+    Label: l
+  }
+}

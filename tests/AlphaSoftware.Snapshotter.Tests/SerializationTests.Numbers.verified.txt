@@ -1,0 +1,18 @@
+﻿{
+  Int: 1,
+  Long: 9223372036854775807,
+  ULong: 18446744073709551615,
+  Decimal: 1.10,
+  WholeDecimal: 2.0,
+  Double: 1.1,
+  WholeDouble: 2.0,
+  Pi: 3.141592653589793,
+  Sum: 0.30000000000000004,
+  Large: 1E+20,
+  Small: 1E-07,
+  NaN: "NaN",
+  Infinity: "Infinity",
+  Float: 1.1,
+  WholeFloat: 3.0,
+  Negative: -5
+}

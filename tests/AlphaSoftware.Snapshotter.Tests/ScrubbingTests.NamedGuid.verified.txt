@@ -1,0 +1,4 @@
+﻿{
+  Value: TheGuid,
+  Other: Guid_1
+}

@@ -1,0 +1,11 @@
+﻿{
+  First: {
+    Id: Guid_1,
+    Created: DateTime_1
+  },
+  Second: {
+    Id: Guid_2,
+    ParentId: Guid_1,
+    Created: DateTime_1
+  }
+}

@@ -1,0 +1,9 @@
+﻿{
+  Customer: {
+    Id: 1,
+    Name: Ann
+  },
+  Other: {
+    Secret: kept
+  }
+}

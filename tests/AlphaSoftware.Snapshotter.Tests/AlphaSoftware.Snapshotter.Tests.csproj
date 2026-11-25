@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
-    <PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
     <Using Include="Xunit" />
   </ItemGroup>
 

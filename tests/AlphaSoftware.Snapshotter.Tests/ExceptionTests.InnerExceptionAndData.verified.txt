@@ -1,0 +1,14 @@
+﻿{
+  Type: InvalidOperationException,
+  Message: outer,
+  Data: {
+    key: val
+  },
+  InnerException: {
+    $type: ArgumentNullException,
+    Type: ArgumentNullException,
+    Message: inner msg,
+    ParamName: p
+  },
+  HelpLink: http://help
+}
