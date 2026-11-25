@@ -15,5 +15,4 @@ Snapshotter is written from scratch to behave like [Verify](https://github.com/V
 
 ## Releases
 
-- Commit types drive releases ([docs/releasing.md](docs/releasing.md)): `feat`, `fix`, `perf`, `revert` and breaking changes release the package. Use `docs`, `chore`, `ci`, `build`, `test`, `refactor` or `style` for changes that shouldn't ship a release.
-- Never edit `CHANGELOG.md`, `.release-please-manifest.json` or package versions by hand, and never push release tags: release-please owns them.
+- A `Snapshotter-v1.2.3` tag releases the package ([docs/releasing.md](docs/releasing.md)). Never push release tags or set package versions by hand: the maintainer decides when to release.

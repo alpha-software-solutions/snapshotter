@@ -65,7 +65,6 @@ Commit messages and pull request titles follow [Conventional Commits](https://ww
 - **Scopes** (optional): `serialization`, `scrubbing`, `naming`, `diff`, `msbuild`, `samples`, `deps`.
 - Write the description in the imperative, starting lowercase, without a trailing period: `fix(naming): keep dots in parameter values`. Keep the header within 100 characters.
 - Mark breaking changes with `!` before the colon (`feat(naming)!: drop UseTypeName`) and a `BREAKING CHANGE:` footer.
-- The type decides what gets released: `feat`, `fix`, `perf` and breaking changes trigger a release and become its changelog entry. See [docs/releasing.md](docs/releasing.md).
 
 `npm ci` installs a commit-msg hook ([husky](https://typicode.github.io/husky/) + [commitlint](https://commitlint.js.org/)) that rejects messages that aren't Conventional Commits and warns about style (subject case, header length). The **Conventional commits** check applies the same rules to pull requests. Squash merges use the pull request title as the commit message, so the title must follow the format too. `npm run lint:commits` checks every commit on your branch against `origin/master`.
 
@@ -75,7 +74,6 @@ Commit messages and pull request titles follow [Conventional Commits](https://ww
 - Add or update tests in `tests/AlphaSoftware.Snapshotter.Tests`. Behavior that depends on the host (a framework, no framework) also goes in the other test projects or the console sample.
 - Public APIs need XML docs. Builds treat warnings as errors.
 - Match the existing style (`.editorconfig`).
-- Don't edit `CHANGELOG.md`: release-please writes it from commit messages, so describe user-visible changes in a `feat` or `fix` commit.
 - **CI result** must pass. Documentation-only changes skip the builds.
 
 ## Releasing (maintainers)

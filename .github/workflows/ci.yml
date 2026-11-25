@@ -5,14 +5,7 @@ name: CI
 on:
   push:
     branches: [master]
-    # Release-please's own files: release PRs and their merges are checked by the Release workflow instead.
-    paths-ignore:
-      - CHANGELOG.md
-      - .release-please-manifest.json
   pull_request:
-    paths-ignore:
-      - CHANGELOG.md
-      - .release-please-manifest.json
   workflow_dispatch:
   workflow_call:
     inputs:

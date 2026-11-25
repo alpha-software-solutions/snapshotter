@@ -1,17 +1,10 @@
 name: Release
 
-# release-please keeps a release PR open with the next version and changelog, worked out from Conventional Commits.
-# Merging it tags the release and creates the GitHub Release, and the jobs below publish the package. See
-# docs/releasing.md.
+# Pushing a Snapshotter-v1.2.3 tag on a master commit releases 1.2.3: the full CI runs, then the package is packed
+# (MinVer takes the version from the tag) and published to nuget.org. See docs/releasing.md.
 on:
   push:
-    branches: [master]
-  workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the latest release again from its tag, e.g. after a publish job failed.
-        type: boolean
-        default: false
+    tags: ['Snapshotter-v*']
 
 permissions:
   contents: read
@@ -26,87 +19,8 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
-  release-please:
-    name: Release Please
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    outputs:
-      release: ${{ steps.publish.outputs.release }}
-      version: ${{ steps.publish.outputs.version }}
-      tag: ${{ steps.publish.outputs.tag }}
-    steps:
-      - uses: googleapis/release-please-action@v5
-        id: release
-        with:
-          # GITHUB_TOKEN-made release PRs only get CI runs after a maintainer approves them; a PAT avoids that.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-      - name: Collect the release to publish
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPUBLISH: ${{ inputs.publish }}
-          RELEASE: ${{ steps.release.outputs.release_created }}
-          VERSION: ${{ steps.release.outputs.version }}
-          TAG: ${{ steps.release.outputs.tag_name }}
-        run: |
-          # A manual run can publish the latest release again (the version is in the manifest).
-          if [ "$REPUBLISH" = true ]; then
-            VERSION=$(gh api "repos/$GITHUB_REPOSITORY/contents/.release-please-manifest.json?ref=$GITHUB_SHA" --jq .content \
-              | base64 -d | jq -r '.["."] // empty')
-            [ -n "$VERSION" ] || { echo "::error::Nothing has been released yet."; exit 1; }
-            TAG="Snapshotter-v$VERSION"
-            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
-            echo "Publishing $TAG again."
-            RELEASE=true
-          fi
-
-          {
-            echo "release=${RELEASE:-false}"
-            echo "version=$VERSION"
-            echo "tag=$TAG"
-          } >> "$GITHUB_OUTPUT"
-
-  # CI doesn't run for release PRs (ci.yml ignores release-please's files), so report its required check here and they
-  # can be merged without bypassing the ruleset. The full CI runs below, before anything is published.
-  release-prs:
-    name: Report CI on release PRs
-    needs: release-please
-    runs-on: ubuntu-24.04
-    permissions:
-      checks: write
-      pull-requests: read
-    steps:
-      - name: Report CI result
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # The same list as ci.yml's paths-ignore: release-please's version and changelog changes.
-          release_files='CHANGELOG\.md|\.release-please-manifest\.json'
-          gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions --limit 20 \
-            --json number,headRefName,headRefOid,files \
-            --jq '.[] | select(.headRefName | startswith("release-please--")) | [.number, .headRefOid, ([.files[].path] | join(" "))] | @tsv' |
-          while IFS=$'\t' read -r number sha files; do
-            if tr ' ' '\n' <<< "$files" | grep -v -x -E "$release_files" | grep -q .; then
-              echo "#$number changes more than the version and changelog, so CI checks it."
-              continue
-            fi
-            gh api "repos/$GITHUB_REPOSITORY/check-runs" --silent \
-              -f name='CI result' -f head_sha="$sha" -f status=completed -f conclusion=success \
-              -f 'output[title]=Release PR: nothing to build' \
-              -f 'output[summary]=This pull request only changes the version and changelog. The Release workflow runs the full CI before it publishes the release.'
-            echo "#$number: reported CI result on $sha."
-          done
-
   ci:
     name: CI
-    needs: release-please
-    if: needs.release-please.outputs.release == 'true'
     # Covers what ci.yml's jobs declare, including CodeQL's, although CodeQL doesn't run here.
     permissions:
       actions: read
@@ -119,27 +33,31 @@ jobs:
 
   pack:
     name: Pack
-    needs: [release-please, ci]
-    if: needs.release-please.outputs.release == 'true'
+    needs: ci
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Check the tag
+        run: |
+          git merge-base --is-ancestor HEAD origin/master ||
+            { echo "::error::$GITHUB_REF_NAME isn't on master."; exit 1; }
+          [[ "${GITHUB_REF_NAME#Snapshotter-v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] ||
+            { echo "::error::$GITHUB_REF_NAME isn't Snapshotter-v followed by a version, like Snapshotter-v1.2.3."; exit 1; }
 
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       - name: Pack
-        env:
-          VERSION: ${{ needs.release-please.outputs.version }}
-        run: dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts -p:MinVerVersionOverride="$VERSION"
+        run: dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts
 
       - name: Check the package
-        env:
-          VERSION: ${{ needs.release-please.outputs.version }}
-        run: test -f "artifacts/AlphaSoftware.Snapshotter.$VERSION.nupkg" && test -f "artifacts/AlphaSoftware.Snapshotter.$VERSION.snupkg"
+        run: |
+          version="${GITHUB_REF_NAME#Snapshotter-v}"
+          test -f "artifacts/AlphaSoftware.Snapshotter.$version.nupkg" && test -f "artifacts/AlphaSoftware.Snapshotter.$version.snupkg"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -147,29 +65,9 @@ jobs:
           path: artifacts/
           if-no-files-found: error
 
-  # The package is published to nuget.org only, not to GitHub Packages. The GitHub Release still carries it as a
-  # download.
-  release-asset:
-    name: Attach the package to the GitHub Release
-    needs: [release-please, pack]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write # attach the packages to the release
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: nuget-packages
-          path: artifacts
-
-      - name: Attach to the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.release-please.outputs.tag }}
-        run: gh release upload "$TAG" artifacts/*.nupkg artifacts/*.snupkg --clobber --repo "$GITHUB_REPOSITORY"
-
   nuget-org:
     name: Publish to nuget.org
-    needs: [release-please, pack]
+    needs: pack
     runs-on: ubuntu-24.04
     environment: release
     permissions:
