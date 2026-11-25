@@ -1,8 +1,17 @@
 <Project>
-  <!--
-  Package versions come from the Verify fork in the submodule. Snapshotter bundles the Verify.dll that
-  the fork builds, so it has to declare exactly the dependency versions that assembly was compiled
-  against. Importing the fork's list keeps the two from drifting when the submodule moves.
-  -->
-  <Import Project="$(MSBuildThisFileDirectory)..\verify\src\Directory.Packages.props" />
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Library -->
+    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
+    <PackageVersion Include="PolySharp" Version="1.13.2" />
+    <!-- Tests: one project per framework, to show the same calls work under each -->
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+    <PackageVersion Include="NUnit" Version="5.0.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="4.5.3" />
+    <PackageVersion Include="MSTest.TestFramework" Version="4.5.3" />
+    <PackageVersion Include="TUnit" Version="1.87.12" />
+  </ItemGroup>
 </Project>

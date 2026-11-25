@@ -1,7 +1,5 @@
 * text=auto eol=lf
-*.snk binary
 *.png binary
+*.bin binary
 *.nupkg binary
-*.verified.txt text eol=lf working-tree-encoding=UTF-8
-*.verified.json text eol=lf working-tree-encoding=UTF-8
-*.verified.xml text eol=lf working-tree-encoding=UTF-8
+src/Snapshotter.Tests/Inputs/** -text

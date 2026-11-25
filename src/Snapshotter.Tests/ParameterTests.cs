@@ -1,6 +1,6 @@
 public class ParameterTests
 {
-    // UseParameters needs the parameter names; Snapshotter reads them from this method by reflection.
+    // The parameter names come from this method, found by reflection.
     [Theory]
     [InlineData(1, "one")]
     [InlineData(2, "two")]
@@ -9,20 +9,23 @@ public class ParameterTests
             .UseParameters(number, word);
 
     [Theory]
+    [InlineData(new[] { 1, 2, 3 }, 1.5)]
+    public Task FormatsCollectionsAndNumbers(int[] values, double factor) =>
+        Verify(values.Select(value => value * factor))
+            .UseParameters(values, factor);
+
+    [Theory]
     [InlineData(3)]
     public Task UseTextForParameters(int number) =>
         Verify(number)
             .UseTextForParameters($"case{number}");
 
     [Fact]
-    public async Task UseParametersWithNoMatchingMethodExplains()
+    public async Task UseParametersOnAMethodWithoutParametersExplains()
     {
-        var exception = await Assert.ThrowsAnyAsync<Exception>(
-            () => Verify("value")
-                .UseParameters("value")
-                .ToTask());
-        // The method has no parameters, so there is nothing to name the value after.
-        Assert.Contains("ParameterTests.UseParametersWithNoMatchingMethodExplains", exception.Message);
+        var exception = await Assert.ThrowsAsync<SnapshotterException>(
+            () => Verify("value").UseParameters("value").ToTask());
+        Assert.Contains("'ParameterTests.UseParametersOnAMethodWithoutParametersExplains'", exception.Message);
         Assert.Contains("UseTextForParameters", exception.Message);
     }
 }

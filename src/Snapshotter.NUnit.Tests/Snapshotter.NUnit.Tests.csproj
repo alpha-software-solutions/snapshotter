@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net48</TargetFrameworks>
-    <TargetFrameworks>$(TargetFrameworks);net11.0</TargetFrameworks>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net48</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworks);net10.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <EnableNUnitRunner>true</EnableNUnitRunner>
   </PropertyGroup>
@@ -11,15 +10,8 @@
   <ItemGroup>
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit3TestAdapter" />
-    <PackageReference Include="System.ValueTuple" VersionOverride="4.6.2" />
     <Using Include="NUnit.Framework" />
-    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\Snapshotter\Snapshotter.csproj" />
-    <ProjectReference Include="..\..\verify\src\Verify\Verify.csproj" AdditionalProperties="GeneratePackageOnBuild=false" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
-    <Reference Include="System.IO.Compression" />
   </ItemGroup>
 
 </Project>

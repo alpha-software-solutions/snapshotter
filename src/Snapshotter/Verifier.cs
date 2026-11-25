@@ -1,4 +1,5 @@
-using System.Runtime.ExceptionServices;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Snapshotter;
 
@@ -6,203 +7,225 @@ namespace Snapshotter;
 /// Snapshot verification that does not depend on any test framework.
 /// </summary>
 /// <remarks>
-/// Snapshots are named from information the compiler supplies at the call site, rather than from a
-/// test framework's runtime context:
-/// <list type="bullet">
-///   <item>the type name is the source file name up to its first dot (<c>OrderTests.cs</c> gives <c>OrderTests</c>),</item>
-///   <item>the method name is the calling member (<see cref="CallerMemberNameAttribute" />).</item>
-/// </list>
-/// For the usual one-class-per-file layout this produces the same file names as the framework specific
-/// adapters, so existing <c>.verified.</c> files keep matching. Either part can be overridden with
-/// <see cref="VerifySettings.UseTypeName" /> and <see cref="VerifySettings.UseMethodName" />.
-/// A failed verification throws, which every test framework, and any other host, reports as a failure.
+/// Each method serializes its target, writes it to <c>{name}.received.{ext}</c> next to the calling
+/// source file and compares it with the committed <c>{name}.verified.{ext}</c>. When they match the
+/// received file is removed. When they don't, a <see cref="SnapshotMismatchException" /> is thrown, which
+/// any test framework, or any other host, reports as a failure.
+/// <para>
+/// The name is <c>{type}.{method}</c>: the type is the source file name up to its first dot, and the
+/// method is the calling member, both supplied by the compiler. So <c>Totals()</c> in <c>OrderTests.cs</c>
+/// is verified against <c>OrderTests.Totals.verified.json</c>.
+/// </para>
 /// </remarks>
-public static partial class Verifier
+public static class Verifier
 {
-    public static InnerVerifier BuildVerifier(
-        VerifySettings settings,
-        Assembly assembly,
-        string sourceFile,
-        string methodName,
-        bool useUniqueDirectory = false,
-        int lineNumber = 0)
-    {
-        if (useUniqueDirectory)
-        {
-            settings.UseUniqueDirectory();
-        }
-
-        sourceFile = IoHelpers.GetMappedBuildPath(sourceFile);
-        var typeName = GetTypeName(sourceFile);
-        methodName = CleanMethodName(methodName);
-
-        var parameterNames = ResolveParameterNames(settings, assembly, typeName, methodName);
-
-        var pathInfo = GetPathInfo(sourceFile, typeName, methodName);
-        return new(sourceFile, settings, typeName, methodName, parameterNames, pathInfo, lineNumber);
-    }
-
-    internal static string GetTypeName(string sourceFile)
-    {
-        var fileName = Path.GetFileName(sourceFile);
-        var index = fileName.IndexOf('.');
-        return index > 0 ? fileName[..index] : fileName;
-    }
+    /// <summary>
+    /// Verifies <paramref name="target" />, serialized as indented JSON (<c>.json</c>).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Verify(
+        object? target,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            s => Task.FromResult(Serialization.FromObject(target, s)));
 
     /// <summary>
-    /// Turns the member name the compiler supplies into one that is safe in a file name.
-    /// Top level statements report <c>&lt;Main&gt;$</c>, and constructors <c>.ctor</c>.
+    /// Verifies <paramref name="target" /> as text (<c>.txt</c>, or the extension set with
+    /// <see cref="SnapshotTask.UseExtension" />).
     /// </summary>
-    internal static string CleanMethodName(string methodName)
-    {
-        if (string.IsNullOrWhiteSpace(methodName))
-        {
-            throw new("Snapshotter could not determine the calling member name. Pass `methodName:` explicitly or use `UseMethodName()`.");
-        }
-
-        var start = methodName.IndexOf('<');
-        if (start >= 0)
-        {
-            var end = methodName.IndexOf('>', start + 1);
-            if (end > start + 1)
-            {
-                return methodName[(start + 1)..end];
-            }
-        }
-
-        return methodName.TrimStart('.');
-    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Verify(
+        string? target,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            s => Task.FromResult(Serialization.FromText(target ?? "null", s)));
 
     /// <summary>
-    /// Without a test framework there is no runtime context that lists the parameters of the test,
-    /// so their names are read from the test method itself: a method named <paramref name="methodName" />
-    /// on a type named <paramref name="typeName" /> in the calling assembly.
+    /// Awaits <paramref name="target" /> and verifies its result.
     /// </summary>
-    static IReadOnlyList<string>? ResolveParameterNames(VerifySettings settings, Assembly assembly, string typeName, string methodName)
-    {
-        if (!settings.TryGetParameters(out var values))
-        {
-            return null;
-        }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Verify<T>(
+        Task<T> target,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            async s => Serialization.FromObject(await target.ConfigureAwait(false), s));
 
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+    /// <summary>
+    /// Verifies raw bytes, compared exactly and stored with <paramref name="extension" />.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Verify(
+        byte[] target,
+        string extension,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            _ => Task.FromResult(Payload.FromBytes(target, CleanExtension(extension))));
 
-        var candidates = GetLoadableTypes(assembly)
-            .Where(_ => StripArity(_.Name) == typeName)
-            .SelectMany(_ => _.GetMethods(flags))
-            .Where(_ => _.Name == methodName)
-            .Select(_ => _.GetParameters().Select(p => p.Name!).ToArray())
-            .Where(_ => _.Length >= values.Length)
-            .ToList();
-
-        var exact = candidates.Where(_ => _.Length == values.Length).ToList();
-        if (exact.Count > 0)
-        {
-            candidates = exact;
-        }
-
-        var distinct = candidates
-            .GroupBy(_ => string.Join(",", _))
-            .Select(_ => _.First())
-            .ToList();
-
-        if (distinct.Count == 1)
-        {
-            return distinct[0];
-        }
-
-        var problem = distinct.Count == 0 ? "No method" : "More than one method";
-        throw new(
-            $"""
-             {problem} named `{typeName}.{methodName}` with at least {values.Length} parameter(s) was found in `{assembly.GetName().Name}`, so the names for `UseParameters()` cannot be determined.
-             Snapshotter takes the type name from the source file name and the method name from the calling member.
-             Either keep the test in a class named after its file, or name the snapshot explicitly with `UseTextForParameters()`.
-             """);
-    }
-
-    static string StripArity(string name)
-    {
-        var index = name.IndexOf('`');
-        return index > 0 ? name[..index] : name;
-    }
-
-    static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
-    {
-        try
-        {
-            return assembly.GetTypes();
-        }
-        catch (ReflectionTypeLoadException exception)
-        {
-            return exception.Types.Where(_ => _ != null)!;
-        }
-    }
-
-    static SettingsTask Verify(
-        VerifySettings? settings,
-        Assembly assembly,
-        string sourceFile,
-        int lineNumber,
-        string methodName,
-        Func<InnerVerifier, Task<VerifyResult>> verify,
-        bool useUniqueDirectory = false)
-    {
-        VerifierSettings.AssignTargetAssembly(assembly);
-        Guards.AgainstBadSourceFile(sourceFile);
-        return new(
-            settings,
-            async settings =>
+    /// <summary>
+    /// Reads <paramref name="target" /> to the end and verifies the bytes, stored with <paramref name="extension" />.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Verify(
+        Stream target,
+        string extension,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            async _ =>
             {
-                using var verifier = BuildVerifier(settings, assembly, sourceFile, methodName, useUniqueDirectory, lineNumber);
+                using var memory = new MemoryStream();
+                await target.CopyToAsync(memory).ConfigureAwait(false);
+                return Payload.FromBytes(memory.ToArray(), CleanExtension(extension));
+            });
+
+    /// <summary>
+    /// Verifies a JSON document, re-indented and scrubbed (<c>.json</c>). Property order is kept.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask VerifyJson(
+        string json,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            s => Task.FromResult(Serialization.FromJson(json, s)));
+
+    /// <summary>
+    /// Verifies the contents of a file, keeping its extension. Known text formats are compared as text
+    /// (with scrubbers applied); anything else byte for byte.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask VerifyFile(
+        string path,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            s => Task.FromResult(FileTarget(path, s)));
+
+    /// <summary>
+    /// Runs <paramref name="action" />, which must throw, and verifies the exception: its type, message
+    /// and properties, without the stack trace.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask Throws(
+        Action action,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            s =>
+            {
                 try
                 {
-                    return await verify(verifier);
+                    action();
                 }
-                catch (TargetInvocationException exception)
-                    when (exception.InnerException != null)
+                catch (Exception exception)
                 {
-                    // Preserve the original stack trace instead of resetting it
-                    // with a bare `throw exception.InnerException`.
-                    ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
-                    throw;
+                    return Task.FromResult(Serialization.FromObject(exception, s));
                 }
+
+                throw new SnapshotterException("Throws(...) expected the action to throw an exception, but it completed.");
             });
+
+    /// <summary>
+    /// Awaits <paramref name="action" />, which must fail, and verifies the exception.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SnapshotTask ThrowsAsync(
+        Func<Task> action,
+        SnapshotSettings? settings = null,
+        [CallerFilePath] string sourceFile = "",
+        [CallerMemberName] string memberName = "") =>
+        Create(settings, Assembly.GetCallingAssembly(), sourceFile, memberName,
+            async s =>
+            {
+                try
+                {
+                    await action().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    return Serialization.FromObject(exception, s);
+                }
+
+                throw new SnapshotterException("ThrowsAsync(...) expected the task to fail, but it completed.");
+            });
+
+    static SnapshotTask Create(
+        SnapshotSettings? settings,
+        Assembly assembly,
+        string sourceFile,
+        string memberName,
+        Func<SnapshotSettings, Task<Payload>> produce)
+    {
+        var site = new CallSite(sourceFile, memberName, assembly);
+        return new((settings ?? SnapshotSettings.Global).Clone(), s => Engine.Run(s, site, produce));
     }
 
-    [Pure]
-    public static SettingsTask Verify(
-        object? target,
-        IEnumerable<Target> rawTargets,
-        VerifySettings? settings = null,
-        [CallerFilePath] string sourceFile = "",
-        [CallerMemberName] string methodName = "",
-        [CallerLineNumber] int lineNumber = 0)
+    static readonly HashSet<string> textExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        var assembly = Assembly.GetCallingAssembly();
-        return Verify(settings, assembly, sourceFile, lineNumber, methodName, _ => _.Verify(target, rawTargets));
+        "txt", "json", "xml", "html", "htm", "csv", "tsv", "md", "yml", "yaml", "svg", "css", "js", "ts",
+        "sql", "config", "ini", "log", "cs", "fs", "vb", "props", "targets", "csproj", "graphql", "toml"
+    };
+
+    static Payload FileTarget(string path, SnapshotSettings settings)
+    {
+        var extension = Path.GetExtension(path).TrimStart('.');
+        if (extension.Length == 0)
+        {
+            extension = "bin";
+        }
+
+        if (!textExtensions.Contains(extension))
+        {
+            return Payload.FromBytes(File.ReadAllBytes(path), extension);
+        }
+
+        var text = settings.Clone();
+        text.Extension = extension;
+        return Serialization.FromText(File.ReadAllText(path), text);
     }
 
-    [Pure]
-    public static SettingsTask Verify(
-        IEnumerable<Target> targets,
-        VerifySettings? settings = null,
-        [CallerFilePath] string sourceFile = "",
-        [CallerMemberName] string methodName = "",
-        [CallerLineNumber] int lineNumber = 0)
+    static string CleanExtension(string extension)
     {
-        var assembly = Assembly.GetCallingAssembly();
-        return Verify(settings, assembly, sourceFile, lineNumber, methodName, _ => _.Verify(targets));
-    }
+        extension = extension.TrimStart('.');
+        if (extension.Length == 0)
+        {
+            throw new ArgumentException("An extension is required, such as \"png\".", nameof(extension));
+        }
 
-    [Pure]
-    public static SettingsTask Verify(
-        Target target,
-        VerifySettings? settings = null,
-        [CallerFilePath] string sourceFile = "",
-        [CallerMemberName] string methodName = "",
-        [CallerLineNumber] int lineNumber = 0)
-    {
-        var assembly = Assembly.GetCallingAssembly();
-        return Verify(settings, assembly, sourceFile, lineNumber, methodName, _ => _.Verify(target));
+        return extension;
     }
+}
+
+/// <summary>
+/// Snapshotter was used in a way it cannot work with, such as two verifications with the same name.
+/// </summary>
+public class SnapshotterException(string message) : Exception(message);
+
+/// <summary>
+/// The received result does not match the verified snapshot, or there is no verified snapshot yet.
+/// </summary>
+public sealed class SnapshotMismatchException(string message, string verifiedPath, string receivedPath)
+    : SnapshotterException(message)
+{
+    /// <summary>
+    /// The committed snapshot, which may not exist yet.
+    /// </summary>
+    public string VerifiedPath { get; } = verifiedPath;
+
+    /// <summary>
+    /// The result of this run.
+    /// </summary>
+    public string ReceivedPath { get; } = receivedPath;
 }

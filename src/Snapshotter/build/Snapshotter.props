@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <!-- Snapshots live next to the test source, found through [CallerFilePath]. Deterministic source
+         paths (turned on with ContinuousIntegrationBuild) would replace that path with /_/..., which
+         does not exist on disk, so they are left off in projects that use Snapshotter. -->
+    <DeterministicSourcePaths Condition="'$(DeterministicSourcePaths)' == ''">false</DeterministicSourcePaths>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Language)' == 'C#' and ('$(ImplicitUsings)' == 'enable' or '$(ImplicitUsings)' == 'true')">
+    <Using Include="Snapshotter" />
+    <Using Include="Snapshotter.Verifier" Static="True" />
+  </ItemGroup>
+</Project>

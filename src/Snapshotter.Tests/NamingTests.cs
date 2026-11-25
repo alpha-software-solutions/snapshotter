@@ -1,13 +1,13 @@
-// Snapshot files are named <file name>.<calling member>, with no test framework involved.
+// Every snapshot here is named <file name>.<calling member>, with no help from the test framework.
 public class NamingTests
 {
     [Fact]
     public Task Object() =>
-        Verify(new
-        {
-            Name = "Ada",
-            Languages = new[] { "C#", "F#" }
-        });
+        Verify(new { Name = "Ada", Languages = new[] { "C#", "F#" } });
+
+    [Fact]
+    public Task Text() =>
+        Verify("plain text");
 
     [Fact]
     public async Task AsyncMethod()
@@ -24,25 +24,8 @@ public class NamingTests
     }
 
     [Fact]
-    public Task Json() =>
-        VerifyJson("""{"b": 2, "a": 1}""");
-
-    [Fact]
-    public Task Throws() =>
-        Verifier.Throws(() => throw new InvalidOperationException("boom"))
-            .IgnoreStackTrace();
-
-    [Fact]
-    public Task ThrowsTask() =>
-        Verifier.ThrowsTask(() => throw new ArgumentException("bad argument", "name"))
-            .IgnoreStackTrace();
-
-    [Fact]
-    public Task CombinationOfInputs() =>
-        Verifier.Combination().Verify(
-            (int a, string b) => $"{a}{b}",
-            [1, 2],
-            ["x", "y"]);
+    public Task TaskResult() =>
+        Verify(Task.FromResult(new { Answer = 42 }));
 
     [Fact]
     public Task ExplicitMethodName() =>
@@ -51,4 +34,16 @@ public class NamingTests
     [Fact]
     public Task ExplicitTypeName() =>
         Verify("retyped").UseTypeName("OtherType");
+
+    [Fact]
+    public Task ExplicitFileName() =>
+        Verify("whole name").UseFileName("Custom");
+
+    [Fact]
+    public Task Extension() =>
+        Verify("# Markdown").UseExtension("md");
+
+    [Fact]
+    public Task Subdirectory() =>
+        Verify("in a subdirectory").UseDirectory("Snapshots");
 }

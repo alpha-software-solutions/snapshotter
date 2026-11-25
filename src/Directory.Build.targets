@@ -1,4 +1,4 @@
 <Project>
   <Import Condition="'$(IsSnapshotterTestProject)' == 'true'"
-          Project="$(MSBuildThisFileDirectory)..\verify\src\Verify\buildTransitive\Verify.targets" />
+          Project="$(MSBuildThisFileDirectory)Snapshotter\build\Snapshotter.targets" />
 </Project>

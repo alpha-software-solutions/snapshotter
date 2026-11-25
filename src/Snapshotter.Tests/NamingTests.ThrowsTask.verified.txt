@@ -1,5 +1,0 @@
-﻿{
-  Type: ArgumentException,
-  Message: bad argument,
-  ParamName: name
-}

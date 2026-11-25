@@ -21,27 +21,25 @@ env:
 
 jobs:
   build:
-    # Windows, so the .NET Framework targets are built and packed too.
+    # Windows, so the tests also run on .NET Framework 4.8 against the netstandard2.0 build.
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          submodules: recursive
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            10.0.402
+            10.0.x
           global-json-file: global.json
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/Directory.Packages.props', '**/Directory.Build.props', '**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
       # The tag is the version: tag 1.2.3 (or v1.2.3) builds 1.2.3. Other builds use the Version in
@@ -68,7 +66,7 @@ jobs:
           }
           dotnet run --project "$src/Snapshotter.TUnit.Tests" @options
 
-      # No test framework, and the package rather than the projects: proves the nupkg is complete.
+      # No test framework, and the package rather than the project: proves the nupkg works on its own.
       - name: Console sample against the package
         run: dotnet run --project samples/ConsoleSample --configuration Release
 

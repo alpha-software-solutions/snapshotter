@@ -1,0 +1,15 @@
+{
+  "Type": "AggregateException",
+  "Message": "One or more errors occurred.",
+  "InnerExceptions": [
+    {
+      "Type": "TimeoutException",
+      "Message": "first"
+    },
+    {
+      "Type": "ArgumentNullException",
+      "Message": "Value cannot be null.",
+      "ParamName": "second"
+    }
+  ]
+}

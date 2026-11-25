@@ -1,1 +1,1 @@
-﻿from a lambda
+from a lambda

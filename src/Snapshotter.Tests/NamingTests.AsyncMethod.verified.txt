@@ -1,1 +1,1 @@
-﻿from an async method
+from an async method

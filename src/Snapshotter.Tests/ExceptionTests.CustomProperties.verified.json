@@ -1,0 +1,5 @@
+{
+  "Type": "OrderRejectedException",
+  "Message": "rejected",
+  "OrderId": 42
+}

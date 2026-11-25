@@ -1,21 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net11.0</TargetFramework>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
 
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
-    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\Snapshotter\Snapshotter.csproj" />
-    <ProjectReference Include="..\..\verify\src\Verify\Verify.csproj" AdditionalProperties="GeneratePackageOnBuild=false" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
-    <Reference Include="System.IO.Compression" />
   </ItemGroup>
 
 </Project>
