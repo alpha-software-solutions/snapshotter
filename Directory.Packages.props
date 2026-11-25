@@ -4,8 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Library -->
-    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
-    <PackageVersion Include="PolySharp" Version="1.13.2" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.15" />
+    <PackageVersion Include="PolySharp" Version="1.17.1" />
     <!-- Build -->
     <PackageVersion Include="MinVer" Version="8.0.0" />
     <!-- Tests: one project per framework, to show the same calls work under each -->
