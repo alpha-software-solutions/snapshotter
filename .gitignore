@@ -1,12 +1,23 @@
-bin/
-obj/
-.vs/
-.idea/
+# .NET
+[Bb]in/
+[Oo]bj/
 *.user
 *.suo
 *.DotSettings.user
+.vs/
+*.binlog
+TestResults/
+
+# Snapshots that did not match. Accept them by renaming to .verified.
 *.received.*
 *.received/
-nugets/
-TestResults/
-*.cache
+
+# Node (commitlint and husky)
+node_modules/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+/artifacts/

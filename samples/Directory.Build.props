@@ -1,0 +1,4 @@
+<Project>
+  <!-- The samples stand in for users' projects: only the repository-wide language settings apply. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+</Project>

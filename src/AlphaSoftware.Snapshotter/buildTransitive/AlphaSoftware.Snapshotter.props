@@ -7,7 +7,7 @@
     <DeterministicSourcePaths Condition="'$(DeterministicSourcePaths)' == ''">false</DeterministicSourcePaths>
   </PropertyGroup>
   <ItemGroup Condition="'$(Language)' == 'C#' and ('$(ImplicitUsings)' == 'enable' or '$(ImplicitUsings)' == 'true')">
-    <Using Include="Snapshotter" />
-    <Using Include="Snapshotter.Verifier" Static="True" />
+    <Using Include="AlphaSoftware.Snapshotter" />
+    <Using Include="AlphaSoftware.Snapshotter.Verifier" Static="True" />
   </ItemGroup>
 </Project>

@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 
-namespace Snapshotter;
+namespace AlphaSoftware.Snapshotter;
 
 /// <summary>
 /// Where the verification was called from, as recorded by the compiler.

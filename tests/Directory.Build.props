@@ -1,0 +1,17 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- The tests reference the project rather than the package, so they import the MSBuild files the package
+       brings. -->
+  <Import Project="$(AlphaSoftwareSnapshotterRepoRoot)src/AlphaSoftware.Snapshotter/buildTransitive/AlphaSoftware.Snapshotter.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="$(AlphaSoftwareSnapshotterRepoRoot)src/AlphaSoftware.Snapshotter/AlphaSoftware.Snapshotter.csproj" />
+  </ItemGroup>
+</Project>

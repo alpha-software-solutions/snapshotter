@@ -2,7 +2,7 @@
 <Project>
   <!-- Shows snapshot files nested under the test file they belong to (OrderTests.Totals.verified.json
        under OrderTests.cs) in Visual Studio and Rider. The SDK's default items exist by now. -->
-  <ItemGroup Condition="'$(Language)' == 'C#' and '$(SnapshotterNestFiles)' != 'false'">
+  <ItemGroup Condition="'$(Language)' == 'C#' and '$(AlphaSoftwareSnapshotterNestFiles)' != 'false'">
     <None Update="**\*.verified.*;**\*.received.*">
       <DependentUpon>$([System.String]::Copy('%(Filename)').Split('.')[0]).cs</DependentUpon>
     </None>

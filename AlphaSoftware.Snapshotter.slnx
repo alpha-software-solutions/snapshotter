@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AlphaSoftware.Snapshotter/AlphaSoftware.Snapshotter.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <File Path="samples/ConsoleSample/ConsoleSample.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AlphaSoftware.Snapshotter.Tests/AlphaSoftware.Snapshotter.Tests.csproj" />
+    <Project Path="tests/AlphaSoftware.Snapshotter.NUnit.Tests/AlphaSoftware.Snapshotter.NUnit.Tests.csproj" />
+    <Project Path="tests/AlphaSoftware.Snapshotter.MSTest.Tests/AlphaSoftware.Snapshotter.MSTest.Tests.csproj" />
+    <Project Path="tests/AlphaSoftware.Snapshotter.TUnit.Tests/AlphaSoftware.Snapshotter.TUnit.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>

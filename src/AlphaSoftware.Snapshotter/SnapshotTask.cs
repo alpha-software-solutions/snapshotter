@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace Snapshotter;
+namespace AlphaSoftware.Snapshotter;
 
 /// <summary>
 /// A verification that has not run yet. Configure it with the <c>Use...</c>, <c>Scrub...</c> and

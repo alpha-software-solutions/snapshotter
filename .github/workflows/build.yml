@@ -42,29 +42,14 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      # The tag is the version: tag 1.2.3 (or v1.2.3) builds 1.2.3. Other builds use the Version in
-      # src/Directory.Build.props.
-      - name: Resolve the version from the tag
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: echo "VERSION_ARGUMENT=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-
-      # A Release build also packs nugets/Snapshotter.<version>.nupkg.
       - name: Build
-        run: dotnet build src/Snapshotter.slnx --configuration Release --verbosity minimal ${{ env.VERSION_ARGUMENT }}
+        run: dotnet build AlphaSoftware.Snapshotter.slnx --configuration Release --verbosity minimal
 
       - name: Test
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true
-          $src = "$env:GITHUB_WORKSPACE/src"
-          $options = '--configuration', 'Release', '--no-build', '--no-restore', '--verbosity', 'minimal'
-          foreach ($project in 'Snapshotter.Tests', 'Snapshotter.NUnit.Tests', 'Snapshotter.MSTest.Tests')
-          {
-            dotnet test --project "$src/$project" @options
-          }
-          dotnet run --project "$src/Snapshotter.TUnit.Tests" @options
+        run: dotnet test --solution AlphaSoftware.Snapshotter.slnx --configuration Release --no-build
+
+      - name: Pack
+        run: dotnet pack src/AlphaSoftware.Snapshotter --configuration Release --no-build --output artifacts
 
       # No test framework, and the package rather than the project: proves the nupkg works on its own.
       - name: Console sample against the package
@@ -84,6 +69,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nupkg
-          path: nugets/*.nupkg
+          path: artifacts/*.nupkg
           if-no-files-found: error
           retention-days: 30

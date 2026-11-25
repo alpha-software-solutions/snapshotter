@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Snapshotter;
+namespace AlphaSoftware.Snapshotter;
 
 static class Engine
 {

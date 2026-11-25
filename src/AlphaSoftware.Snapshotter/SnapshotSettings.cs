@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
-namespace Snapshotter;
+namespace AlphaSoftware.Snapshotter;
 
 /// <summary>
 /// Controls how a snapshot is named, serialized and scrubbed.
