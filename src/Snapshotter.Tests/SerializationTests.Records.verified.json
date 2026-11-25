@@ -1,0 +1,15 @@
+{
+  "Id": 7,
+  "Status": "Shipped",
+  "Lines": [
+    {
+      "Product": "apple",
+      "Quantity": 2
+    },
+    {
+      "Product": "pear",
+      "Quantity": 1
+    }
+  ],
+  "Note": null
+}

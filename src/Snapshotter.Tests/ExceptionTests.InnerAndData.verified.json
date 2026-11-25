@@ -1,0 +1,11 @@
+{
+  "Type": "InvalidOperationException",
+  "Message": "outer",
+  "Data": {
+    "attempt": 3
+  },
+  "InnerException": {
+    "Type": "FormatException",
+    "Message": "inner"
+  }
+}

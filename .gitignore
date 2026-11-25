@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+*.received.*
+*.received/
+nugets/
+TestResults/
+*.cache

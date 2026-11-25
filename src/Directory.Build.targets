@@ -1,0 +1,4 @@
+<Project>
+  <Import Condition="'$(IsSnapshotterTestProject)' == 'true'"
+          Project="$(MSBuildThisFileDirectory)Snapshotter\build\Snapshotter.targets" />
+</Project>

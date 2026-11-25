@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.bin binary
+*.nupkg binary
+src/Snapshotter.Tests/Inputs/** -text
