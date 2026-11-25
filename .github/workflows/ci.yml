@@ -225,11 +225,13 @@ jobs:
           path: artifacts/
           if-no-files-found: error
 
+  # Code scanning needs GitHub Code Security on private repositories, so CodeQL runs once the repository is public.
   codeql:
     name: CodeQL
     needs: changes
-    if: needs.changes.outputs.codeql != '[]'
+    if: needs.changes.outputs.codeql != '[]' && !github.event.repository.private
     permissions:
+      actions: read
       contents: read
       security-events: write
     uses: ./.github/workflows/codeql.yml

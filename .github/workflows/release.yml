@@ -109,6 +109,7 @@ jobs:
     if: needs.release-please.outputs.release == 'true'
     # Covers what ci.yml's jobs declare, including CodeQL's, although CodeQL doesn't run here.
     permissions:
+      actions: read
       contents: read
       pull-requests: read
       security-events: write
