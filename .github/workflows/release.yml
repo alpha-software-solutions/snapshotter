@@ -1,0 +1,203 @@
+name: Release
+
+# release-please keeps a release PR open with the next version and changelog, worked out from Conventional Commits.
+# Merging it tags the release and creates the GitHub Release, and the jobs below publish the package. See
+# docs/releasing.md.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the latest release again from its tag, e.g. after a publish job failed.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release: ${{ steps.publish.outputs.release }}
+      version: ${{ steps.publish.outputs.version }}
+      tag: ${{ steps.publish.outputs.tag }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          # GITHUB_TOKEN-made release PRs only get CI runs after a maintainer approves them; a PAT avoids that.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Collect the release to publish
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPUBLISH: ${{ inputs.publish }}
+          RELEASE: ${{ steps.release.outputs.release_created }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          # A manual run can publish the latest release again (the version is in the manifest).
+          if [ "$REPUBLISH" = true ]; then
+            VERSION=$(gh api "repos/$GITHUB_REPOSITORY/contents/.release-please-manifest.json?ref=$GITHUB_SHA" --jq .content \
+              | base64 -d | jq -r '.["."] // empty')
+            [ -n "$VERSION" ] || { echo "::error::Nothing has been released yet."; exit 1; }
+            TAG="Snapshotter-v$VERSION"
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+            echo "Publishing $TAG again."
+            RELEASE=true
+          fi
+
+          {
+            echo "release=${RELEASE:-false}"
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
+
+  # CI doesn't run for release PRs (ci.yml ignores release-please's files), so report its required check here and they
+  # can be merged without bypassing the ruleset. The full CI runs below, before anything is published.
+  release-prs:
+    name: Report CI on release PRs
+    needs: release-please
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: write
+      pull-requests: read
+    steps:
+      - name: Report CI result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The same list as ci.yml's paths-ignore: release-please's version and changelog changes.
+          release_files='CHANGELOG\.md|\.release-please-manifest\.json'
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions --limit 20 \
+            --json number,headRefName,headRefOid,files \
+            --jq '.[] | select(.headRefName | startswith("release-please--")) | [.number, .headRefOid, ([.files[].path] | join(" "))] | @tsv' |
+          while IFS=$'\t' read -r number sha files; do
+            if tr ' ' '\n' <<< "$files" | grep -v -x -E "$release_files" | grep -q .; then
+              echo "#$number changes more than the version and changelog, so CI checks it."
+              continue
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/check-runs" --silent \
+              -f name='CI result' -f head_sha="$sha" -f status=completed -f conclusion=success \
+              -f 'output[title]=Release PR: nothing to build' \
+              -f 'output[summary]=This pull request only changes the version and changelog. The Release workflow runs the full CI before it publishes the release.'
+            echo "#$number: reported CI result on $sha."
+          done
+
+  ci:
+    name: CI
+    needs: release-please
+    if: needs.release-please.outputs.release == 'true'
+    # Covers what ci.yml's jobs declare, including CodeQL's, although CodeQL doesn't run here.
+    permissions:
+      contents: read
+      pull-requests: read
+      security-events: write
+    uses: ./.github/workflows/ci.yml
+    with:
+      full: true
+
+  pack:
+    name: Pack
+    needs: [release-please, ci]
+    if: needs.release-please.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag }}
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Pack
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts -p:MinVerVersionOverride="$VERSION"
+
+      - name: Check the package
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: test -f "artifacts/AlphaSoftware.Snapshotter.$VERSION.nupkg" && test -f "artifacts/AlphaSoftware.Snapshotter.$VERSION.snupkg"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: artifacts/
+          if-no-files-found: error
+
+  # The package is published to nuget.org only, not to GitHub Packages. The GitHub Release still carries it as a
+  # download.
+  release-asset:
+    name: Attach the package to the GitHub Release
+    needs: [release-please, pack]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # attach the packages to the release
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: gh release upload "$TAG" artifacts/*.nupkg artifacts/*.snupkg --clobber --repo "$GITHUB_REPOSITORY"
+
+  nuget-org:
+    name: Publish to nuget.org
+    needs: [release-please, pack]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # NuGet trusted publishing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Log in to nuget.org (trusted publishing)
+        id: nuget-login
+        if: vars.NUGET_USER != ''
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::Configure NuGet trusted publishing (vars.NUGET_USER) or the NUGET_API_KEY secret. See docs/releasing.md."
+            exit 1
+          fi
+          # The symbol package (.snupkg) next to the .nupkg is pushed automatically.
+          dotnet nuget push "artifacts/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
