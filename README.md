@@ -14,7 +14,7 @@ test framework reports an exception as a failure, and so does a console app or a
 ## Install
 
 ```
-dotnet add package Snapshotter
+dotnet add package AlphaSoftware.Snapshotter
 ```
 
 With implicit usings on (the SDK default), `Verify(...)` and the rest are available in every file.
@@ -179,12 +179,10 @@ every OS and in every editor.
 ```
 git clone https://github.com/alpha-software-solutions/snapshotter.git
 cd snapshotter
-dotnet build src/Snapshotter.slnx -c Release      # also packs nugets/Snapshotter.<version>.nupkg
-dotnet test --project src/Snapshotter.Tests        # the main suite (xUnit v3)
-dotnet test --project src/Snapshotter.NUnit.Tests
-dotnet test --project src/Snapshotter.MSTest.Tests
-dotnet run  --project src/Snapshotter.TUnit.Tests
-dotnet run  --project samples/ConsoleSample        # no test framework, uses the packed nupkg
+dotnet build AlphaSoftware.Snapshotter.slnx -c Release
+dotnet test --solution AlphaSoftware.Snapshotter.slnx -c Release --no-build   # xUnit, NUnit, MSTest and TUnit
+dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts
+dotnet run --project samples/ConsoleSample                                     # no test framework, uses the packed nupkg
 ```
 
 `SNAPSHOTTER_ACCEPT=1` accepts new snapshots, but `FailureTests` checks what happens on a mismatch and fails
@@ -193,4 +191,4 @@ while it is set; run them again without it.
 
 ## License
 
-MIT. See [license.txt](license.txt).
+MIT. See [LICENSE](LICENSE).

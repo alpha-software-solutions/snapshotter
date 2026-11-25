@@ -1,19 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Consumes the Snapshotter package built into ../../nugets, as a user would. Build the package first:
-       dotnet build src/Snapshotter -c Release -->
+  <!-- Consumes the AlphaSoftware.Snapshotter package packed into ../../artifacts, as a user would. Pack it first:
+       dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The repository's central package versions don't apply: this project stands in for a user's. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <!-- A private package folder, so a rebuilt package with the same version is not served stale from the
          global NuGet cache. -->
     <RestorePackagesPath>$(MSBuildThisFileDirectory)obj\packages</RestorePackagesPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Snapshotter" Version="*" />
+    <PackageReference Include="AlphaSoftware.Snapshotter" Version="*-*" />
   </ItemGroup>
 
 </Project>

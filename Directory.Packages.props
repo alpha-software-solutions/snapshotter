@@ -6,6 +6,8 @@
     <!-- Library -->
     <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="PolySharp" Version="1.13.2" />
+    <!-- Build -->
+    <PackageVersion Include="MinVer" Version="8.0.0" />
     <!-- Tests: one project per framework, to show the same calls work under each -->
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="NUnit" Version="5.0.0" />

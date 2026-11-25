@@ -1,16 +1,50 @@
 <Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Package metadata shared by every Snapshotter package. -->
   <PropertyGroup>
-    <Version>0.1.0</Version>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- CS1591: missing XML comment on a public member. -->
+    <Authors>Alpha Software Solutions</Authors>
+    <Copyright>Copyright (c) Alpha Software Solutions</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/alpha-software-solutions/snapshotter</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/alpha-software-solutions/snapshotter</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>https://github.com/alpha-software-solutions/snapshotter/releases</PackageReleaseNotes>
+    <PackageTags>snapshot;snapshot-testing;approval-testing;verify;testing;xunit;nunit;mstest;tunit</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Public API carries XML docs; internals are not required to. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <IsSnapshotterTestProject Condition="$(MSBuildProjectName.EndsWith('Tests'))">true</IsSnapshotterTestProject>
   </PropertyGroup>
-  <!-- In this repo the tests reference the project rather than the package, so they import the
-       MSBuild file the package brings. -->
-  <Import Condition="'$(IsSnapshotterTestProject)' == 'true'"
-          Project="$(MSBuildThisFileDirectory)Snapshotter\build\Snapshotter.props" />
+
+  <!-- Source Link (built into the SDK), symbols and reproducible builds. -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <!--
+    Versions come from the release tags release-please creates (Snapshotter-v1.2.3); untagged commits build as the
+    next patch's preview. Releases pass the exact version with MinVerVersionOverride.
+  -->
+  <PropertyGroup>
+    <MinVerTagPrefix>Snapshotter-v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>0.1</MinVerMinimumMajorMinor>
+    <MinVerDefaultPreReleaseIdentifiers>preview.0</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(AlphaSoftwareSnapshotterRepoRoot)README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(AlphaSoftwareSnapshotterRepoRoot)LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(AlphaSoftwareSnapshotterRepoRoot)assets/icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 </Project>

@@ -1,5 +1,24 @@
-* text=auto eol=lf
+* text=auto
+*.cs text eol=crlf
+*.csproj text eol=crlf
+*.props text eol=crlf
+*.targets text eol=crlf
+*.slnx text eol=crlf
+*.ico binary
 *.png binary
 *.bin binary
 *.nupkg binary
-src/Snapshotter.Tests/Inputs/** -text
+.husky/* text eol=lf
+*.sh text eol=lf
+
+# Snapshots are compared ignoring line endings, but keep them identical on every OS so diffs stay clean.
+*.verified.txt text eol=lf working-tree-encoding=UTF-8
+*.verified.json text eol=lf working-tree-encoding=UTF-8
+*.verified.xml text eol=lf working-tree-encoding=UTF-8
+*.verified.md text eol=lf working-tree-encoding=UTF-8
+*.verified.html text eol=lf working-tree-encoding=UTF-8
+*.verified.csv text eol=lf working-tree-encoding=UTF-8
+*.verified.bin binary
+
+# Test inputs keep their exact bytes (one has CRLF line endings on purpose).
+tests/AlphaSoftware.Snapshotter.Tests/Inputs/** -text

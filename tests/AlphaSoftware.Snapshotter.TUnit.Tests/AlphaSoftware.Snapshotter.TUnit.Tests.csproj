@@ -2,13 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <OutputType>Exe</OutputType>
-
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
-    <ProjectReference Include="..\Snapshotter\Snapshotter.csproj" />
   </ItemGroup>
 
 </Project>

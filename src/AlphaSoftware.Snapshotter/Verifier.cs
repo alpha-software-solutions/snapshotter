@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Snapshotter;
+namespace AlphaSoftware.Snapshotter;
 
 /// <summary>
 /// Snapshot verification that does not depend on any test framework.

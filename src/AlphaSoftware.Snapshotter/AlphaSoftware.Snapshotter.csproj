@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- netstandard2.0 covers .NET Framework 4.6.1 and later; net8.0 uses the in-box System.Text.Json. -->
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <RootNamespace>AlphaSoftware.Snapshotter</RootNamespace>
+    <Description>Snapshot testing for .NET that works like Verify with any test framework, or none: xUnit, NUnit, MSTest, TUnit, a console app or a CI script.</Description>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AlphaSoftware.Snapshotter.Tests" />
+  </ItemGroup>
+
+  <!-- The same props and targets for direct and transitive references. -->
+  <ItemGroup>
+    <None Include="buildTransitive\AlphaSoftware.Snapshotter.props" Pack="true" PackagePath="build\;buildTransitive\" />
+    <None Include="buildTransitive\AlphaSoftware.Snapshotter.targets" Pack="true" PackagePath="build\;buildTransitive\" />
+  </ItemGroup>
+
+</Project>
