@@ -1,0 +1,43 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <!-- NoWarn:
+         * CS1591: missing XML comment on a publicly visible type or member.
+         * CS1573: parameter has no matching param tag in an XML comment that has others.
+         * CA1822: member does not use instance data and can be static.
+         * VerifyTestsProjectDir: use of the experimental VerifierSettings.ProjectDir.
+         * PolyfillTargetsForNuget: Polyfill asks a packed project to target every framework.
+         * NU1608 / NU1109: version constraints of the centrally pinned packages.
+         * xUnit1051: call that accepts a CancellationToken is not given TestContext.Current.CancellationToken. -->
+    <NoWarn>CS1591;CS1573;CA1822;VerifyTestsProjectDir;PolyfillTargetsForNuget;NU1608;NU1109;xUnit1051</NoWarn>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PolyEnsure>true</PolyEnsure>
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <!-- Work around https://github.com/dotnet/sdk/issues/51265#issuecomment-3407578810 -->
+    <RestoreEnablePackagePruning>false</RestoreEnablePackagePruning>
+    <IsSnapshotterTestProject Condition="$(MSBuildProjectName.EndsWith('Tests'))">true</IsSnapshotterTestProject>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SolutionDir)' == '' Or '$(SolutionDir)' == '*Undefined*'">
+    <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
+    <SolutionName>Snapshotter</SolutionName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Diagnostics.CodeAnalysis" />
+    <Using Include="System.Globalization" />
+    <Using Include="System.Linq.Expressions" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="System.Diagnostics.CodeAnalysis" />
+    <Using Include="System.Globalization" />
+    <Using Include="System.Linq.Expressions" />
+  </ItemGroup>
+  <!-- In this repo the tests reference the projects rather than the package, so they import the
+       MSBuild files the package would bring: the engine's, then Snapshotter's. -->
+  <Import Condition="'$(IsSnapshotterTestProject)' == 'true'"
+          Project="$(MSBuildThisFileDirectory)..\verify\src\Verify\buildTransitive\Verify.props" />
+  <Import Condition="'$(IsSnapshotterTestProject)' == 'true'"
+          Project="$(MSBuildThisFileDirectory)Snapshotter\buildTransitive\Snapshotter.props" />
+</Project>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!-- The engine's MSBuild files ship next to this one in the package. They record the project and
+       solution directories as assembly metadata, which is how snapshots are located at run time. -->
+  <Import Project="$(MSBuildThisFileDirectory)Verify.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)Verify.props')" />
+  <ItemGroup Condition="$(Language) == 'C#' and ($(ImplicitUsings) == 'enable' or $(ImplicitUsings) == 'true')">
+    <Using Include="Snapshotter" />
+    <Using Include="Snapshotter.Verifier" Static="True" />
+  </ItemGroup>
+</Project>

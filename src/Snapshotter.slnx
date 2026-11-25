@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Snapshotter/Snapshotter.csproj" />
+  <Project Path="Snapshotter.Tests/Snapshotter.Tests.csproj" />
+  <Project Path="Snapshotter.NUnit.Tests/Snapshotter.NUnit.Tests.csproj" />
+  <Project Path="Snapshotter.MSTest.Tests/Snapshotter.MSTest.Tests.csproj" />
+  <Project Path="Snapshotter.TUnit.Tests/Snapshotter.TUnit.Tests.csproj" />
+</Solution>

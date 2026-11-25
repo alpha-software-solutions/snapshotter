@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net48</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworks);net11.0</TargetFrameworks>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <Using Include="Xunit" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+
+    <ProjectReference Include="..\Snapshotter\Snapshotter.csproj" />
+    <!-- In the package the engine sits beside Snapshotter.dll. A project reference does not flow it,
+         so the tests reference it directly. -->
+    <ProjectReference Include="..\..\verify\src\Verify\Verify.csproj" AdditionalProperties="GeneratePackageOnBuild=false" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  build:
+    # Windows, so the .NET Framework targets are built and packed too.
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.402
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/Directory.Packages.props', '**/Directory.Build.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # The tag is the version: tag 1.2.3 (or v1.2.3) builds 1.2.3. Other builds use the Version in
+      # src/Directory.Build.props.
+      - name: Resolve the version from the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: echo "VERSION_ARGUMENT=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # A Release build also packs nugets/Snapshotter.<version>.nupkg.
+      - name: Build
+        run: dotnet build src/Snapshotter.slnx --configuration Release --verbosity minimal ${{ env.VERSION_ARGUMENT }}
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $src = "$env:GITHUB_WORKSPACE/src"
+          $options = '--configuration', 'Release', '--no-build', '--no-restore', '--verbosity', 'minimal'
+          foreach ($project in 'Snapshotter.Tests', 'Snapshotter.NUnit.Tests', 'Snapshotter.MSTest.Tests')
+          {
+            dotnet test --project "$src/$project" @options
+          }
+          dotnet run --project "$src/Snapshotter.TUnit.Tests" @options
+
+      # No test framework, and the package rather than the projects: proves the nupkg is complete.
+      - name: Console sample against the package
+        run: dotnet run --project samples/ConsoleSample --configuration Release
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: received
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload package
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: nugets/*.nupkg
+          if-no-files-found: error
+          retention-days: 30

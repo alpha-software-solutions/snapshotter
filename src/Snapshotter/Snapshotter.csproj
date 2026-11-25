@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The same frameworks as the bundled engine, so every lib folder has a matching Verify.dll. -->
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net462;net472;net48</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <PackageId>Snapshotter</PackageId>
+    <Description>Snapshot testing for .NET that works with any test framework, or none. Built on the MIT licensed Verify engine, bundled, with no maintenance fee or build-time sponsorship check.</Description>
+    <PackageTags>Snapshot;Testing;Approvals;Verify;Json</PackageTags>
+    <Authors>Snapshotter contributors</Authors>
+    <Copyright>Copyright (c) .NET Foundation and Contributors. Copyright (c) Snapshotter contributors.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/alpha-software-solutions/Snapshotter</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/alpha-software-solutions/Snapshotter</RepositoryUrl>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeVerifyEngine</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+
+    <!-- The engine is bundled rather than referenced as a package: the Verify package on nuget.org
+         is upstream's, which carries the maintenance fee check. Its own dependencies are declared
+         here instead, at the versions it was built against (see Directory.Packages.props). -->
+    <ProjectReference Include="..\..\verify\src\Verify\Verify.csproj"
+                      PrivateAssets="all"
+                      AdditionalProperties="GeneratePackageOnBuild=false" />
+    <PackageReference Include="DiffEngine" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Argon" />
+
+    <None Include="buildTransitive\Snapshotter.props" Pack="true" PackagePath="buildTransitive\;build\" />
+    <None Include="buildTransitive\Snapshotter.targets" Pack="true" PackagePath="buildTransitive\;build\" />
+    <None Include="..\..\verify\src\Verify\buildTransitive\Verify.props" Pack="true" PackagePath="buildTransitive\;build\" Visible="false" />
+    <None Include="..\..\verify\src\Verify\buildTransitive\Verify.targets" Pack="true" PackagePath="buildTransitive\;build\" Visible="false" />
+    <None Include="..\..\verify\src\Verify\buildTransitive\Verify.AfterMicrosoftNetSdk.props" Pack="true" PackagePath="buildTransitive\;build\" Visible="false" />
+
+    <None Include="..\..\readme.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\license.txt" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
+    <PackageReference Include="System.Memory" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+
+  <!-- Puts the engine (Verify.dll and its XML docs) in each lib folder beside Snapshotter.dll. -->
+  <Target Name="IncludeVerifyEngine" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' != '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ProjectDefaults overwrites Authors just before the nuspec is generated. -->
+  <Target Name="SnapshotterNuspecAuthors" AfterTargets="ProjectDefaultsUpdateNuspec" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <Authors>Snapshotter contributors</Authors>
+    </PropertyGroup>
+  </Target>
+
+</Project>

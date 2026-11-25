@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Consumes the Snapshotter package built into ../../nugets, exactly as a user would. Build the
+       package first (dotnet build src/Snapshotter -c Release). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- A private package folder, so a rebuilt package with the same version is not served stale from
+         the global NuGet cache. -->
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)obj\packages</RestorePackagesPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Snapshotter" Version="*" />
+  </ItemGroup>
+
+</Project>
