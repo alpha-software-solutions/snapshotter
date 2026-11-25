@@ -148,7 +148,7 @@ brings in its own `Verify.dll` and the fee check.
 ## Building
 
 ```
-git clone --recursive https://github.com/alpha-software-solutions/Snapshotter.git
+git clone --recursive https://github.com/alpha-software-solutions/snapshotter.git
 cd Snapshotter
 dotnet build src/Snapshotter.slnx -c Release
 ```

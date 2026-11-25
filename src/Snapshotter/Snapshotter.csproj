@@ -10,8 +10,8 @@
     <Authors>Snapshotter contributors</Authors>
     <Copyright>Copyright (c) .NET Foundation and Contributors. Copyright (c) Snapshotter contributors.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/alpha-software-solutions/Snapshotter</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/alpha-software-solutions/Snapshotter</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/alpha-software-solutions/snapshotter</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/alpha-software-solutions/snapshotter</RepositoryUrl>
     <PackageReadmeFile>readme.md</PackageReadmeFile>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeVerifyEngine</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
