@@ -18,8 +18,8 @@
 
   <!-- The same props and targets for direct and transitive references. -->
   <ItemGroup>
-    <None Include="buildTransitive\AlphaSoftware.Snapshotter.props" Pack="true" PackagePath="build\;buildTransitive\" />
-    <None Include="buildTransitive\AlphaSoftware.Snapshotter.targets" Pack="true" PackagePath="build\;buildTransitive\" />
+    <None Include="buildTransitive/AlphaSoftware.Snapshotter.props" Pack="true" PackagePath="build/AlphaSoftware.Snapshotter.props;buildTransitive/AlphaSoftware.Snapshotter.props" />
+    <None Include="buildTransitive/AlphaSoftware.Snapshotter.targets" Pack="true" PackagePath="build/AlphaSoftware.Snapshotter.targets;buildTransitive/AlphaSoftware.Snapshotter.targets" />
   </ItemGroup>
 
 </Project>
