@@ -1,0 +1,50 @@
+name: Bug report
+description: Something doesn't work as documented, or differs from Verify.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report this! Security issues go through [private reporting](https://github.com/alpha-software-solutions/snapshotter/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead? If Verify behaves differently, say how.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The test (or console code), the snapshot you expected and the one you got.
+      render: csharp
+    validations:
+      required: true
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Test framework
+      multiple: true
+      options:
+        - xUnit
+        - NUnit
+        - MSTest
+        - TUnit
+        - None (console app, script)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: AlphaSoftware.Snapshotter, the .NET runtime the tests run on, and the OS.
+      placeholder: AlphaSoftware.Snapshotter 0.1.0, .NET 10.0.0, Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Exception message
+      description: The full message of the exception Snapshotter threw.
+      render: shell
