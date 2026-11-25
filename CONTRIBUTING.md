@@ -45,7 +45,9 @@ dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts
 dotnet run --project samples/ConsoleSample               # uses the package in artifacts/
 ```
 
-Snapshot tests that fail leave a `.received.` file next to the `.verified.` one; rename it to `.verified.` to accept it, or see the README's *Accepting changes* section.
+Snapshot tests that fail leave a `.received.` file next to the `.verified.` one; rename it to `.verified.` to accept it. To accept everything that changed, run the tests with `SNAPSHOTTER_ACCEPT=1` (each test project's module initializer turns on `VerifierSettings.AutoVerify()`), then run them again without it: `FailureTests` checks what happens on a mismatch and fails while it is set.
+
+Snapshots are shared by `net48` and `net10.0`, so check both runtimes before committing new ones.
 
 ## Commit messages
 

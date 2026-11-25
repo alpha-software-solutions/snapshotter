@@ -1,177 +1,271 @@
 # Snapshotter
 
-Snapshot testing for .NET that works with any test framework, or with none at all.
-
-Snapshotter serializes a value, writes it to a `.received.` file next to your test and compares it with the
-committed `.verified.` file. If they match, the received file is removed. If they don't, it throws. Every
-test framework reports an exception as a failure, and so does a console app or a CI step.
-
-* No dependency on xUnit, NUnit, MSTest, TUnit or anything else.
-* No dependencies at all on .NET 8 and later; `System.Text.Json` on .NET Standard 2.0 (.NET Framework 4.6.1+).
-* MIT licensed, written from scratch.
-
-
-## Install
+Snapshot testing for .NET that works like [Verify](https://github.com/VerifyTests/Verify), with any test framework
+or with none at all.
 
 ```
 dotnet add package AlphaSoftware.Snapshotter
 ```
 
-With implicit usings on (the SDK default), `Verify(...)` and the rest are available in every file.
-Add `*.received.*` to your `.gitignore`.
+Snapshotter has Verify's API, snapshot format, file names and defaults, so in most cases tests and `.verified.`
+files move over unchanged. What it doesn't have is a dependency on xUnit, NUnit, MSTest, TUnit or anything else: one package works
+in all of them, in a console app and in a CI script.
+
+* No adapter packages and no `[UsesVerify]`: the test method and class are found from the call stack.
+* With NUnit, xUnit v3 and TUnit, a parameterized test's arguments are picked up automatically, as Verify's adapters
+  do. They are read through reflection, so nothing is referenced.
+* No dependencies on .NET 8 and later; `System.Text.Json` on .NET Standard 2.0 (.NET Framework 4.6.1+).
+* MIT licensed and written from scratch. It contains no Verify code.
 
 
 ## Use it
 
-The call is the same whichever framework runs the test:
+With implicit usings on (the SDK default), `Verify(...)` and the rest are available in every file of a project
+that references the package.
 
 ```csharp
 public class OrderTests
 {
-    [Fact]          // or [Test], [TestMethod], TUnit's [Test]
+    [Fact]          // or [Test], [TestMethod], TUnit's [Test], or no attribute at all
     public Task Totals() =>
         Verify(new Order(1001, ["apple", "pear"], 12.5m));
 }
 ```
 
 The first run fails, because there is nothing to compare against yet, and writes
-`OrderTests.Totals.received.json`:
+`OrderTests.Totals.received.txt` next to the test file:
 
-```json
+```
 {
-  "Id": 1001,
-  "Lines": [
-    "apple",
-    "pear"
+  Id: 1001,
+  Lines: [
+    apple,
+    pear
   ],
-  "Total": 12.5
+  Total: 12.5
 }
 ```
 
-If it's right, rename it to `OrderTests.Totals.verified.json` and commit it, or rerun with
-`SNAPSHOTTER_ACCEPT=1` to accept everything that changed. From then on the test fails whenever the output
-changes, with a message showing the first line that differs:
+Accept it by renaming it to `OrderTests.Totals.verified.txt` (or with your diff tool, or an IDE plugin), and
+commit it. From then on the test fails whenever the output changes:
 
 ```
-Snapshot 'OrderTests.Totals' does not match the verified file.
-  Verified: /repo/tests/OrderTests.Totals.verified.json
-  Received: /repo/tests/OrderTests.Totals.received.json
+Directory: /repo/tests
+NotEqual:
+  - Received: OrderTests.Totals.received.txt
+    Verified: OrderTests.Totals.verified.txt
 
-First difference, line 7:
-  - verified:   "Total": 12.5
-  + received:   "Total": 99
+FileContent:
+
+NotEqual:
+
+Received: OrderTests.Totals.received.txt
+Verified: OrderTests.Totals.verified.txt
+Diff:
+6 ],
+- Total: 12.5
++ Total: 99
+7 }
 ```
+
+Add these to your repository, as with Verify:
+
+```gitignore
+# .gitignore
+*.received.*
+```
+
+```gitattributes
+# .gitattributes
+*.verified.txt text eol=lf working-tree-encoding=UTF-8
+*.verified.xml text eol=lf working-tree-encoding=UTF-8
+*.verified.json text eol=lf working-tree-encoding=UTF-8
+*.verified.bin binary
+```
+
+
+## Moving from Verify
+
+1. Replace the `Verify.Xunit` / `Verify.NUnit` / `Verify.MSTest` / `Verify.TUnit` package with
+   `AlphaSoftware.Snapshotter`.
+2. Replace `using VerifyXunit;` (and the others) and `using VerifyTests;` with
+   `using AlphaSoftware.Snapshotter;`, or remove them if you use implicit usings.
+3. Remove `[UsesVerify]` and `VerifyBase` base classes; there is nothing to inherit.
+4. Converters written against Argon change their base type to Snapshotter's `WriteOnlyJsonConverter<T>`; see
+   [Serializer settings](#serializer-settings).
+
+Your `.verified.` files stay as they are.
 
 
 ## What can be verified
 
 | Call | Snapshot |
 |---|---|
-| `Verify(object)` | Indented JSON, `.json` |
-| `Verify(string)` | The text itself, `.txt` (change with `.UseExtension("md")`) |
-| `Verify(Task<T>)` | The awaited result |
-| `VerifyJson(string)` | The JSON, re-indented and scrubbed, property order kept |
-| `Verify(byte[], "png")`, `Verify(Stream, "png")` | The bytes, compared exactly |
-| `VerifyFile(path)` | The file, as text for known text formats, otherwise byte for byte |
-| `Throws(() => ...)`, `ThrowsAsync(async () => ...)` | The exception: type, message, extra properties, inner exceptions, no stack trace |
+| `Verify(object)` | Serialized, `.txt` (`.json` with `UseStrictJson()`) |
+| `Verify(string)`, `Verify(string, "html")` | The text itself |
+| `Verify(5)`, `Verify(true)`, `Verify(guid)`, `Verify(date)` | The value as text, not scrubbed |
+| `Verify(Task<T>)`, `Verify(ValueTask<T>)`, `Verify(Func<Task<T>>)`, `Verify(IAsyncEnumerable<T>)` | The awaited result |
+| `VerifyJson(string or Stream)` | The JSON in the snapshot format, property order kept |
+| `VerifyXml(string, Stream or XDocument)` | Pretty printed, without the declaration (`.xml`) |
+| `Verify(byte[])`, `Verify(Stream)`, `Verify(bytes, "png")` | The bytes, compared exactly (`.bin` by default) |
+| `VerifyFile(path)` | The file, as text for text formats, otherwise byte for byte |
+| `VerifyDirectory(path)` | Every file in it, each its own snapshot in a directory named after the test |
+| `Verify(Target)`, `Verify(IEnumerable<Target>)`, `Verify(object, IEnumerable<Target>)` | Explicit files |
+| `Throws(...)`, `ThrowsTask(...)`, `ThrowsValueTask(...)` | The exception |
 
-Objects are serialized with `System.Text.Json`: public properties in declaration order, enums as names,
-reference cycles cut, `Type` values as their name, and delegate and reflection members left out.
-Exception messages are written the same on .NET Framework and .NET, so one snapshot serves both.
+Each call returns a `SettingsTask`: chain settings onto it and await it, or return it from the test.
+`await Verify(...)` gives a `VerifyResult` with the verified files and their text.
+
+
+## The snapshot format
+
+Objects are written the way Verify writes them:
+
+* Names and strings are not quoted or escaped. Multiline strings start on the next line.
+* Public fields, then public properties, in declaration order, most derived type first.
+* Members holding their default value (`0`, `null`, `Guid.Empty`) are left out, except `bool` members, which are
+  always written. Empty collections are left out too (`DontIgnoreEmptyCollections()` keeps them).
+* Dictionaries are sorted by key (`DontSortDictionaries()` keeps their order).
+* Reference loops are cut. `[Obsolete]` members are left out (`IncludeObsoletes()`).
+* Enums are written by name, types by their C# name (`List<int>`), exceptions with their type, message, data,
+  inner exception and a cleaned stack trace.
+* Files are UTF-8 with a byte order mark, with `\n` line endings, and without a trailing newline.
+
+`UseStrictJson()` writes real JSON instead, in `.json` files.
 
 
 ## Scrubbing
 
-Values that change between runs are replaced with numbered placeholders. The same value always gets the
-same placeholder, so the snapshot still shows which values were equal:
+Values that change between runs are replaced with numbered placeholders. The same value always gets the same
+number within a snapshot, so the snapshot still shows which values were equal:
 
-```json
+```
 {
-  "Id": "Guid_1",
-  "ManagerId": "Guid_2",
-  "TeamLeadId": "Guid_1",
-  "Created": "DateTime_1"
+  Id: Guid_1,
+  ManagerId: Guid_2,
+  TeamLeadId: Guid_1,
+  Created: DateTime_1,
+  Path: {ProjectDirectory}Data/orders.json
 }
 ```
 
-| Option | Effect |
+| On by default | |
 |---|---|
-| `.DontScrubGuids()`, `.DontScrubDates()` | Keep the real values |
-| `.ScrubInlineGuids()` | Also replace GUIDs inside longer strings and text |
-| `.IgnoreMember("Password")` | Leave out a member by name, on every type and in `VerifyJson` |
-| `.IgnoreMember<User>(_ => _.Created)` | Leave out one member of one type (and its subtypes) |
-| `.IgnoreNullValues()` | Leave out null members |
-| `.ScrubLinesContaining("token=")` | Remove whole lines |
-| `.AddScrubber(text => ...)` | Rewrite the final text however you like |
-| `.AddConverter(converter)` | Add a `System.Text.Json` converter |
+| Guids | `Guid_1`, `Guid_Empty` (`DontScrubGuids()`) |
+| Dates and times | `DateTime_1`, `DateTimeOffset_1`, `Date_1`, `Time_1`, `Date_MinValue` (`DontScrubDateTimes()`) |
+| Directories | `{SolutionDirectory}`, `{ProjectDirectory}`, `{CurrentDirectory}`, `{TempPath}`, `{UserProfile}` |
 
-Set defaults for every test once, for example in a module initializer:
+| Opt in | |
+|---|---|
+| `ScrubInlineGuids()`, `ScrubInlineDateTimes("yyyy-MM-dd")` | Also inside longer strings and text |
+| `ScrubNumericIds()` | Numeric members ending in `Id`: `Customer_1`, `OrderId_1` |
+| `ScrubMachineName()`, `ScrubUserName()` | `TheMachineName`, `TheUserName` |
+| `AddNamedGuid(id, "Admin")`, `AddNamedDate(...)` | A known value as its name |
+| `IgnoreMember("Password")`, `IgnoreMember<User>(_ => _.Created)`, `IgnoreMembersWithType<T>()` | Leave members out |
+| `ScrubMember(...)`, `ScrubMembersWithType<T>()` | Write `{Scrubbed}` |
+| `IgnoreInstance<T>(predicate)`, `ScrubInstance<T>(predicate)` | By value |
+| `ScrubLines(...)`, `ScrubLinesContaining(...)`, `ScrubLinesWithReplace(...)`, `ScrubEmptyLines()` | Line by line |
+| `ScrubReplace(find, replacement)`, `AddScrubber(builder => ...)` | Anything else |
+
+Settings can be passed in a `VerifySettings` (`Verify(target, settings)`), chained on the call, or set for every
+test in a module initializer, before the first verification:
 
 ```csharp
-public static class SnapshotDefaults
+public static class ModuleInitializer
 {
     [ModuleInitializer]
-    public static void Init()
+    public static void Initialize()
     {
-        SnapshotSettings.Global.IgnoreMember("ETag");
-        SnapshotSettings.Global.ScrubInlineGuids = true;
+        VerifierSettings.IgnoreMember("ETag");
+        VerifierSettings.ScrubInlineGuids();
     }
 }
 ```
 
 
-## How snapshots are named
+## Naming
 
-Snapshotter doesn't ask a test framework which test is running. It uses what the compiler records at the
-call site:
+`{Directory}/{Type}.{Method}{_Parameters}{.Uniqueness}{#Target}.verified.{ext}`
 
-| Part | Comes from | Example |
+| Part | Default | Override |
 |---|---|---|
-| Directory | The directory of the test source file | `tests/` |
-| Type | The source file name, up to its first dot | `OrderTests.cs` → `OrderTests` |
-| Method | The calling member | `Totals` |
+| Directory | The test source file's directory | `UseDirectory("Snapshots")`, `Verifier.DerivePathInfo(...)`, `UseUniqueDirectory()` |
+| Type | The test class, `Outer.Inner` when nested | `UseTypeName(...)` |
+| Method | The test method | `UseMethodName(...)`, or `UseFileName(...)` for the whole name |
+| Parameters | `_number=1_word=one` | `UseParameters(...)`, `UseTextForParameters(...)`, `IgnoreParameters(...)` |
+| Uniqueness | none | `UniqueForRuntime()` (`.DotNet`, `.Net`), `UniqueForRuntimeAndVersion()`, `UniqueForTargetFramework()`, `UniqueForAssemblyConfiguration()`, `UniqueForArchitecture()`, `UniqueForOSPlatform()` |
 
-So keep a test class in a file named after it. Override any part with `.UseDirectory("Snapshots")`,
-`.UseTypeName(...)`, `.UseMethodName(...)` or `.UseFileName(...)`. A lambda inside a test uses the test's
-name, and top level statements are named `Main`.
+Each name may be verified only once per run, so two verifications in one test need `UseMethodName(...)`.
 
-Each snapshot may only be verified once per run, so two verifications in one test need different names.
-Snapshotter tells you if two collide.
+In a project with several target frameworks, received files carry the runtime (`.DotNet10_0.received.txt`) while
+every framework shares one verified file.
 
-Because snapshots are found through the source path, tests run where the source is. The package turns off
-`DeterministicSourcePaths` for the projects that reference it, which would otherwise rewrite that path on
-CI builds.
+Snapshots are found through the compiler's caller file path, so tests run where their source is. The package turns
+off `DeterministicSourcePaths` in projects that reference it, which would otherwise rewrite that path on CI builds.
 
-
-## Parameterized tests
-
-Test frameworks know a theory's arguments; Snapshotter doesn't, so pass them in:
+### Parameterized tests
 
 ```csharp
-// NumberTests.cs
 [Theory]
 [InlineData(1, "one")]
-[InlineData(2, "two")]
 public Task Words(int number, string word) =>
-    Verify($"{number} is {word}")
-        .UseParameters(number, word);   // NumberTests.Words_number=1_word=one.verified.txt
+    Verify($"{number} is {word}");        // NumberTests.Words_number=1_word=one.verified.txt
 ```
 
-The names (`number`, `word`) are read from the test method. If it can't be found, use
-`.UseTextForParameters("case1")`, which needs no lookup.
+NUnit, xUnit v3 and TUnit expose the running test's arguments, so they are used without asking. With MSTest and
+xUnit v2, pass them in, as with Verify: `.UseParameters(number, word)`.
 
 
 ## Accepting changes and diff tools
 
-* Rename `.received.` files to `.verified.`, or
-* set `SNAPSHOTTER_ACCEPT=1` and rerun (or `.AutoAccept()` / `SnapshotSettings.Global.AutoAccept = true`).
+* Rename `.received.` files to `.verified.`, accept them in a diff tool or an IDE plugin, or
+* call `AutoVerify()` on a verification, or `VerifierSettings.AutoVerify()` in a module initializer.
 
-To open a diff tool on a mismatch, set `SNAPSHOTTER_DIFF_TOOL` (or `SnapshotSettings.Global.DiffTool`) to
-a command with `{received}` and `{verified}` placeholders, for example
-`code --diff "{received}" "{verified}"`. It never runs on a build server.
+When a snapshot is new or doesn't match, Snapshotter opens the first installed diff tool: Beyond Compare, P4Merge,
+Kaleidoscope, DiffMerge, TortoiseGitMerge, TortoiseMerge, WinMerge, Meld, KDiff3, Sublime Merge, Rider, Visual Studio
+Code or Visual Studio. Change the order with `DiffTools.UseOrder(...)` or `DiffEngine_ToolOrder`, add your own with
+`DiffTools.AddTool(...)`, and turn it off with `DisableDiff()` or `DiffEngine_Disabled=true`. No diff tool opens on a
+build server or under an AI coding agent.
 
-Comparison ignores line endings, a byte order mark and a final newline, so snapshots behave the same on
-every OS and in every editor.
+
+## Serializer settings
+
+```csharp
+VerifierSettings.AddExtraSettings(_ =>
+{
+    _.Converters.Add(new CompanyConverter());
+    _.DefaultValueHandling = DefaultValueHandling.Include;
+});
+
+class CompanyConverter : WriteOnlyJsonConverter<Company>
+{
+    public override void Write(VerifyJsonWriter writer, Company company)
+    {
+        writer.WriteMember(company, company.Name, "Name");
+        writer.WriteMember(company, company.Employees, "Employees");
+    }
+}
+```
+
+Snapshotter has its own serializer, so `AddExtraSettings` takes Snapshotter's `SerializerSettings`
+(`Converters`, `DefaultValueHandling`, `NullValueHandling`) rather than Argon's `JsonSerializerSettings`.
+
+
+## Also supported
+
+`AppendValue(...)`, `AppendFile(...)`, `AppendContentAsFile(...)`; `UseStringComparer(...)`,
+`UseStreamComparer(...)`, `VerifierSettings.RegisterStringComparer(...)`; `OnVerify`, `OnFirstVerify`,
+`OnVerifyMismatch`, `OnDelete`; `VerifierSettings.TreatAsString<T>()`, `SortPropertiesAlphabetically()`,
+`UseUtf8NoBom()`, `FixNewlinesOnRead()`, `IgnoreTrailingNewline()`, `OmitContentFromException()`,
+`NameForParameter<T>()`, `AddExtraDateTimeFormat(...)`; `FileExtensions.AddTextExtension(...)`.
+
+
+## Not supported (yet)
+
+Verify's plugin ecosystem (Verify.EntityFramework, Verify.Http, image comparison and the rest), file converters
+(`RegisterFileConverter`), inline snapshots, `VerifyZip`, `VerifyTuple`, combinations, `Recording`,
+`OrderEnumerableBy`, `MemberConverter`, the split unique-directory mode, DiffEngineTray, and the dangling-snapshot and
+convention checks. Issues and pull requests are welcome.
 
 
 ## Building
@@ -179,16 +273,15 @@ every OS and in every editor.
 ```
 git clone https://github.com/alpha-software-solutions/snapshotter.git
 cd snapshotter
-dotnet build AlphaSoftware.Snapshotter.slnx -c Release
-dotnet test --solution AlphaSoftware.Snapshotter.slnx -c Release --no-build   # xUnit, NUnit, MSTest and TUnit
+dotnet build AlphaSoftware.Snapshotter.slnx
+dotnet test --solution AlphaSoftware.Snapshotter.slnx   # xUnit, NUnit, MSTest and TUnit
 dotnet pack src/AlphaSoftware.Snapshotter -c Release -o artifacts
-dotnet run --project samples/ConsoleSample                                     # no test framework, uses the packed nupkg
+dotnet run --project samples/ConsoleSample               # no test framework, uses the packed package
 ```
 
-`SNAPSHOTTER_ACCEPT=1` accepts new snapshots, but `FailureTests` checks what happens on a mismatch and fails
-while it is set; run them again without it.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Snapshotter is not affiliated with Verify or its authors.
