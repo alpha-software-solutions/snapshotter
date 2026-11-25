@@ -29,8 +29,7 @@
   </PropertyGroup>
 
   <!--
-    Versions come from the release tags release-please creates (Snapshotter-v1.2.3); untagged commits build as the
-    next patch's preview. Releases pass the exact version with MinVerVersionOverride.
+    Versions come from release tags (Snapshotter-v1.2.3); untagged commits build as the next patch's preview.
   -->
   <PropertyGroup>
     <MinVerTagPrefix>Snapshotter-v</MinVerTagPrefix>
