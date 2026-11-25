@@ -12,6 +12,8 @@
   <Import Project="$(AlphaSoftwareSnapshotterRepoRoot)src/AlphaSoftware.Snapshotter/buildTransitive/AlphaSoftware.Snapshotter.props" />
 
   <ItemGroup>
+    <!-- Module initializers and other newer attributes on net48. -->
+    <PackageReference Include="PolySharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
     <ProjectReference Include="$(AlphaSoftwareSnapshotterRepoRoot)src/AlphaSoftware.Snapshotter/AlphaSoftware.Snapshotter.csproj" />
   </ItemGroup>
 </Project>

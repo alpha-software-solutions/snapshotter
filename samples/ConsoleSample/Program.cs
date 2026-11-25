@@ -1,10 +1,10 @@
-// No test framework at all. Snapshots are named after this file (Program). Top level statements all run
-// in one member, so each verification gives itself a name with UseMethodName. A mismatch throws, so the
-// process exits with a failure code, which is all a CI step needs.
+// No test framework at all. Snapshots are named after this file's class (Program) and the calling member; top
+// level statements all run in one member, so each verification gives itself a name with UseMethodName. A mismatch
+// throws a VerifyException, so the process exits with a failure code, which is all a CI step needs.
 
 var order = new
 {
-    Id = 1001,
+    Id = Guid.NewGuid(),
     Lines = new[] { "apple", "pear" },
     Total = 12.5m,
     PlacedAt = DateTimeOffset.UtcNow

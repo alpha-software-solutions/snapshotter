@@ -1,0 +1,14 @@
+﻿{
+  Plain: abc,
+  Empty: ,
+  Space:  ,
+  Lead:   lead,
+  Trail: trail  ,
+  Colon: a: b,
+  Comma: a, b,
+  Braces: {x} [y],
+  Quotes: say "hi" 'yo',
+  Backslash: c:\temp\x,
+  NullWord: null,
+  Number: 123
+}

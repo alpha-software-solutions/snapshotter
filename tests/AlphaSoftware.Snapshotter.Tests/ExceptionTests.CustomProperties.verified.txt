@@ -1,0 +1,5 @@
+﻿{
+  Type: ExceptionTests.OrderException,
+  Message: Order failed,
+  OrderId: 42
+}

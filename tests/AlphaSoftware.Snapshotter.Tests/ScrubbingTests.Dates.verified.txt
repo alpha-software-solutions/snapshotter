@@ -1,0 +1,10 @@
+﻿{
+  DateTime: DateTime_1,
+  DateTimeNullable: DateTime_1,
+  SameTicksOtherKind: DateTime_2,
+  DateTimeOffset: DateTimeOffset_1,
+  DateTimeOffsetNullable: DateTimeOffset_1,
+  IsoString: DateTimeOffset_1,
+  MinValue: Date_MinValue,
+  MaxValue: Date_MaxValue
+}

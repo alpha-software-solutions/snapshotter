@@ -1,0 +1,17 @@
+﻿{
+  StringKey: {
+    k: 1
+  },
+  IntKey: {
+    Key: 3,
+    Value: v
+  },
+  List: [
+    {
+      a: 1
+    },
+    {
+      b: 2
+    }
+  ]
+}

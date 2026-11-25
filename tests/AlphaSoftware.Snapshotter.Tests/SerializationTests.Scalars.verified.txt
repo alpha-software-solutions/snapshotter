@@ -1,0 +1,17 @@
+﻿{
+  True: true,
+  False: false,
+  Char: a,
+  Enum: Blue,
+  UndefinedEnum: 7,
+  Flags: Read, Execute,
+  TimeSpan: 1.02:03:04.0050000,
+  NegativeTimeSpan: -01:30:00,
+  Uri: https://example.com/a?b=c,
+  RelativeUri: /rel/path,
+  Version: 1.2.3,
+  Type: Dictionary<string, int?>,
+  ArrayType: string[],
+  NestedType: Environment.SpecialFolder,
+  Bytes: AQID/w==
+}

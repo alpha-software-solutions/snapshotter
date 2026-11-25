@@ -1,0 +1,13 @@
+﻿{
+  Int: 0,
+  String: null,
+  Bool: false,
+  NullableBool: false,
+  NullableZero: 0,
+  Double: 0.0,
+  Enum: Red,
+  Guid: Guid_Empty,
+  NullableEmptyGuid: Guid_Empty,
+  DateTime: Date_MinValue,
+  NullableMinDate: Date_MinValue
+}

@@ -1,9 +1,0 @@
-{
-  "Id": "Guid_1",
-  "ManagerId": "Guid_2",
-  "TeamLeadId": "Guid_1",
-  "Created": "DateTime_1",
-  "LastSeen": "DateTime_2",
-  "Name": "Ada",
-  "Password": "secret"
-}

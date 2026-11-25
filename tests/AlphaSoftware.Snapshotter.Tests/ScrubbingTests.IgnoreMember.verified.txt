@@ -1,0 +1,6 @@
+﻿{
+  Keep: 1,
+  Nested: {
+    Keep: 2
+  }
+}

@@ -1,0 +1,23 @@
+﻿{
+  Before: 1,
+  Text:
+line1
+line2
+line3,
+  After: 2,
+  StartsWithNewline:
+foo,
+  EndsWithNewline:
+bar
+,
+  Nested: {
+    Inner:
+x
+y
+  },
+  Items: [
+    single,
+    multi
+line
+  ]
+}

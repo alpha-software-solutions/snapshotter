@@ -1,0 +1,12 @@
+﻿{
+  Order: {
+    F1: f1,
+    F2: f2,
+    P1: p1,
+    P2: p2
+  },
+  Inheritance: {
+    DerivedProperty: d,
+    BaseProperty: b
+  }
+}

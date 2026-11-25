@@ -1,43 +1,69 @@
 public class ExceptionTests
 {
-    public class OrderRejectedException(string message, int orderId) : Exception(message)
+    [Fact]
+    public Task ActionThrows() =>
+        Throws(() => throw new InvalidOperationException("outer"))
+            .IgnoreStackTrace();
+
+    [Fact]
+    public Task FuncThrows() =>
+        Throws(() => int.Parse("x"))
+            .IgnoreStackTrace()
+            .IgnoreMember("Message");
+
+    [Fact]
+    public Task TaskThrows() =>
+        ThrowsTask(async () =>
+            {
+                await Task.Yield();
+                throw new ArgumentException("bad argument", "theParam");
+            })
+            .IgnoreStackTrace();
+
+    [Fact]
+    public Task ValueTaskThrows() =>
+        ThrowsValueTask(() => throw new NotSupportedException("value task"))
+            .IgnoreStackTrace();
+
+    [Fact]
+    public Task InnerExceptionAndData()
+    {
+        var exception = new InvalidOperationException("outer", new ArgumentNullException("p", "inner msg"))
+        {
+            HelpLink = "http://help"
+        };
+        exception.Data["key"] = "val";
+        return Verify(exception);
+    }
+
+    [Fact]
+    public Task CustomProperties() =>
+        Verify(new OrderException("Order failed", 42));
+
+    [Fact]
+    public Task StackTrace() =>
+        Throws(Thrower.Throw)
+            .UniqueForRuntime();
+
+    [Fact]
+    public Task Aggregate() =>
+        Verify(new AggregateException(new Exception("first"), new Exception("second")))
+            .IgnoreMember("Message");
+
+    [Fact]
+    public async Task DidNotThrow()
+    {
+        var exception = await Assert.ThrowsAsync<Exception>(async () => await Throws(() => { }));
+        Assert.Equal("Did not throw.", exception.Message);
+    }
+
+    public class OrderException(string message, int orderId) : Exception(message)
     {
         public int OrderId { get; } = orderId;
     }
 
-    [Fact]
-    public Task Throws() =>
-        Verifier.Throws(() => throw new InvalidOperationException("boom"));
-
-    [Fact]
-    public Task ThrowsAsync() =>
-        Verifier.ThrowsAsync(async () =>
-        {
-            await Task.Yield();
-            throw new ArgumentException("bad argument", "name");
-        });
-
-    [Fact]
-    public Task CustomProperties() =>
-        Verifier.Throws(() => throw new OrderRejectedException("rejected", 42));
-
-    [Fact]
-    public Task InnerAndData() =>
-        Verifier.Throws(() =>
-        {
-            var exception = new InvalidOperationException("outer", new FormatException("inner"));
-            exception.Data["attempt"] = 3;
-            throw exception;
-        });
-
-    [Fact]
-    public Task Aggregate() =>
-        Verifier.Throws(() => throw new AggregateException(new TimeoutException("first"), new ArgumentNullException("second")));
-
-    [Fact]
-    public async Task NothingThrown()
+    static class Thrower
     {
-        var exception = await Assert.ThrowsAsync<SnapshotterException>(() => Verifier.Throws(() => { }).ToTask());
-        Assert.Contains("expected the action to throw", exception.Message);
+        public static void Throw() => throw new InvalidOperationException("with a stack trace");
     }
 }

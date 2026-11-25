@@ -1,1 +1,7 @@
-Created Guid_1, then Guid_2, then Guid_1 again.
+﻿braces {Guid_1}
+slashes /Guid_1/
+undashed Guid_1
+upper Guid_1
+touching aebced679-45d3-4653-8791-3d969c4a986ca
+empty Guid_Empty
+again Guid_1

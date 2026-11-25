@@ -1,0 +1,8 @@
+﻿{
+  Name: Contoso,
+  EmployeeCount: 2,
+  Employees: [
+    Ann,
+    Bob
+  ]
+}

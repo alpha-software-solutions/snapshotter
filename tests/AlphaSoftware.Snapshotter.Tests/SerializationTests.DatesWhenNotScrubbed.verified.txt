@@ -1,0 +1,10 @@
+﻿{
+  Midnight: 2000-01-01 Utc,
+  Minutes: 2000-01-01 01:01 Utc,
+  Seconds: 2000-01-01 01:01:01 Utc,
+  Fraction: 2000-01-01 01:01:01.999 Utc,
+  Unspecified: 2020-10-10 01:02:03.1234567,
+  Offset: 2000-01-01 +1-30,
+  WholeHourOffset: 2000-01-01 01:01:01 -5,
+  ZeroOffset: 2020-10-10 +0
+}

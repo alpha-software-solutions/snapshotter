@@ -1,0 +1,13 @@
+﻿{
+  "Name": "x",
+  "Multi": "a\nb",
+  "Number": 1.5,
+  "Quote": "q\"",
+  "Date": "DateTime_1",
+  "Char": "c",
+  "Flags": "Read, Write",
+  "Dictionary": {
+    "k": 1
+  },
+  "Bool": false
+}

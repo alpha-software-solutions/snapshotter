@@ -6,6 +6,16 @@
          does not exist on disk, so they are left off in projects that use Snapshotter. -->
     <DeterministicSourcePaths Condition="'$(DeterministicSourcePaths)' == ''">false</DeterministicSourcePaths>
   </PropertyGroup>
+
+  <!-- What the snapshot names and the {ProjectDirectory} and {SolutionDirectory} scrubbers need to know about the
+       build. Items are evaluated after every property, so the project's own values are used. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="AlphaSoftware.Snapshotter.ProjectDirectory" Value="$(MSBuildProjectDirectory)$([System.IO.Path]::DirectorySeparatorChar)" />
+    <AssemblyMetadata Include="AlphaSoftware.Snapshotter.SolutionDirectory" Value="$(SolutionDir)" Condition="'$(SolutionDir)' != '' and '$(SolutionDir)' != '*Undefined*'" />
+    <AssemblyMetadata Include="AlphaSoftware.Snapshotter.TargetFrameworks" Value="$(TargetFrameworks)" Condition="'$(TargetFrameworks)' != ''" />
+    <AssemblyMetadata Include="AlphaSoftware.Snapshotter.TargetFramework" Value="$(TargetFramework)" Condition="'$(TargetFrameworks)' == ''" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(Language)' == 'C#' and ('$(ImplicitUsings)' == 'enable' or '$(ImplicitUsings)' == 'true')">
     <Using Include="AlphaSoftware.Snapshotter" />
     <Using Include="AlphaSoftware.Snapshotter.Verifier" Static="True" />

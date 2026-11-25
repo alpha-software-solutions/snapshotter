@@ -1,0 +1,7 @@
+﻿{
+  Bool: false,
+  NullableBool: false,
+  NullableZero: 0,
+  NullableEmptyGuid: Guid_Empty,
+  NullableMinDate: Date_MinValue
+}

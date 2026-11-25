@@ -1,0 +1,7 @@
+﻿{
+  Project: {ProjectDirectory}Inputs/notes.txt,
+  ProjectWithForwardSlashes: {ProjectDirectory}Inputs,
+  Solution: {SolutionDirectory}README.md,
+  Temp: {TempPath}file.txt,
+  NotAPrefix: {SolutionDirectory}tests/AlphaSoftware.Snapshotter.TestsExtra
+}

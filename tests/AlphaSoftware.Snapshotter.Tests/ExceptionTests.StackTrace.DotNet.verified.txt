@@ -1,0 +1,5 @@
+﻿{
+  Type: InvalidOperationException,
+  Message: with a stack trace,
+  StackTrace: at ExceptionTests.Thrower.Throw()
+}

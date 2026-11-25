@@ -1,0 +1,36 @@
+﻿{
+  List: [
+    1,
+    2,
+    3
+  ],
+  Nested: [
+    [
+      1,
+      2
+    ],
+    [
+      3
+    ]
+  ],
+  Mixed: [
+    1,
+    two,
+    null,
+    true,
+    {
+      X: 1
+    }
+  ],
+  Objects: [
+    {
+      Name: a
+    },
+    {
+      Name: b
+    }
+  ],
+  EmptyObjects: [
+    {}
+  ]
+}

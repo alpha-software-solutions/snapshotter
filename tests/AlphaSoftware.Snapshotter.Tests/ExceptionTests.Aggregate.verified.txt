@@ -1,0 +1,11 @@
+﻿{
+  Type: AggregateException,
+  InnerExceptions: [
+    {
+      Type: Exception
+    },
+    {
+      Type: Exception
+    }
+  ]
+}

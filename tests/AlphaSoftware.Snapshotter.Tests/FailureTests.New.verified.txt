@@ -1,0 +1,13 @@
+﻿Directory: {Directory}
+New:
+  - Received: New.{Runtime}.received.txt
+    Verified: New.verified.txt
+
+FileContent:
+
+New:
+
+Received: New.{Runtime}.received.txt
+{
+  Value: 1
+}

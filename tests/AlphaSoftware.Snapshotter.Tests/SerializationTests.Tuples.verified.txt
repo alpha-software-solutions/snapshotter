@@ -1,0 +1,14 @@
+﻿{
+  Value: {
+    Item1: 1,
+    Item2: a
+  },
+  Named: {
+    Item1: 1,
+    Item2: x
+  },
+  Reference: {
+    Item1: true,
+    Item2: 2
+  }
+}

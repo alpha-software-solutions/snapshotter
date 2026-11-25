@@ -1,0 +1,31 @@
+﻿{
+  StringKeys: {
+    10: 10,
+    9: 9,
+    a: 1,
+    b: 2,
+    B: 3,
+    null: null,
+    _: 0
+  },
+  IntKeys: {
+    -1: minus one,
+    9: nine,
+    10: ten
+  },
+  EnumKeys: {
+    Red: 1,
+    Blue: 2
+  },
+  Sorted: {
+    a: 1,
+    b: 2
+  },
+  TypeKeys: {
+    int: 1,
+    List<string>: 2
+  },
+  NameValues: {
+    key: value1,value2
+  }
+}
